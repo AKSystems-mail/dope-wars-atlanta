@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <rect x="0" y="0" width="256" height="256" fill="#1a1625" rx="32"/>
+  <text x="128" y="100" text-anchor="middle" font-family="monospace" font-size="48" fill="#00ff9d" font-weight="bold">DW</text>
+  <text x="128" y="150" text-anchor="middle" font-family="monospace" font-size="20" fill="#ff00f7">ATL</text>
+  <circle cx="128" cy="195" r="20" fill="none" stroke="#ffd700" stroke-width="2" stroke-dasharray="4,4"/>
+  <circle cx="128" cy="195" r="6" fill="#ffd700"/>
+</svg>

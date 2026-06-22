@@ -1,0 +1,39 @@
+; Engine configuration for Dope Wars Atlanta
+; Godot 4.7 project
+
+config_version=5
+
+[application]
+
+config/name="Dope Wars Atlanta"
+config/description="A pixel-art drug trading game set in Atlanta"
+config/version="0.1.0"
+config/main_scene="res://scenes/main_menu.tscn"
+config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=540
+window/size/viewport_height=960
+window/size/mode=0
+window/size/initial_position_type=0
+window/handheld/orientation=1  ; portrait
+window/size/always_on_top=false
+window/dpi/allow_hidpi=true
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+
+[input]
+
+ui_accept={"deadzone": 0.5, "events": [{"action": "ui_accept"}]}
+ui_cancel={"deadzone": 0.5, "events": [{"action": "ui_cancel"}]}
+
+[autoload]
+
+GameState="*res://scripts/global/game_state.gd"
+AudioManager="*res://scripts/global/audio_manager.gd"
+ThemeConst="*res://scripts/theme/theme_constants.gd"

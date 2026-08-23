@@ -120,12 +120,7 @@ class MapNodeComponent extends Component {
 
   String _displayName(String id) {
     const names = {
-      'hapeville': 'Hapeville',
-      'college_park': 'College Park',
-      'airport': 'Airport',
-      'east_point': 'East Point',
       'west_end': 'West End',
-      'five_points': 'Five Points',
       'midtown': 'Midtown',
       'little_five': 'Little Five',
       'buckhead': 'Buckhead',

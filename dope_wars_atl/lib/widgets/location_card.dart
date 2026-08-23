@@ -95,8 +95,6 @@ class LocationCard extends StatelessWidget {
     if (location.isCouncilman) return '🧑‍⚖️';
     if (location.isBookbagUpgrade) return '🎒';
     switch (location.id) {
-      case 'airport': return '✈️';
-      case 'hapeville': return '🏠';
       case 'cobb': return '🏔️';
       default: return '📍';
     }

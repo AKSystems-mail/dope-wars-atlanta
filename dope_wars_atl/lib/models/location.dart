@@ -120,68 +120,6 @@ class Location {
       ],
     ),
 
-    // ── FUTURE MULTIPLAYER LOCATIONS (kept in code, not travelable) ──
-    Location(
-      id: 'hapeville',
-      name: 'Hapeville',
-      description: 'Where it all starts. The bottom rung.',
-      accentColor: const Color(0xFF9e9e9e),
-      isTravelable: false,
-      products: [
-        Product.defaults[0],
-        Product.defaults[1],
-      ],
-    ),
-    Location(
-      id: 'college_park',
-      name: 'College Park',
-      description: 'Quiet suburb. Decent prices.',
-      accentColor: const Color(0xFF757575),
-      isTravelable: false,
-      products: [
-        Product.defaults[0],
-        Product.defaults[1],
-        Product.defaults[4],
-      ],
-    ),
-    Location(
-      id: 'airport',
-      name: 'Airport',
-      description: 'Heavy traffic, heavy heat. Cops everywhere.',
-      accentColor: const Color(0xFF616161),
-      isTravelable: false,
-      products: [
-        Product.defaults[0],
-        Product.defaults[1],
-        Product.defaults[2],
-        Product.defaults[3],
-        Product.defaults[4],
-      ],
-    ),
-    Location(
-      id: 'east_point',
-      name: 'East Point',
-      description: 'Gritty. Real. The product moves here.',
-      accentColor: const Color(0xFF8d6e63),
-      isTravelable: false,
-      products: [
-        Product.defaults[0],
-        Product.defaults[1],
-        Product.defaults[3],
-      ],
-    ),
-    Location(
-      id: 'five_points',
-      name: 'Five Points',
-      description: 'The hub. MARTA central. Watch your back.',
-      accentColor: const Color(0xFF42a5f5),
-      isTravelable: false,
-      products: [
-        Product.defaults[0],
-        Product.defaults[2],
-        Product.defaults[4],
-      ],
-    ),
   ];
 
   static Location getById(String id) {

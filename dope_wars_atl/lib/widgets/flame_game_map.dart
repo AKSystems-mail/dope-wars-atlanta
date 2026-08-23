@@ -57,7 +57,7 @@ class _FlameGameMapState extends State<FlameGameMap> {
     final coords = locationCoords[locationId];
     if (coords == null) return;
     final screenSize = MediaQuery.of(context).size;
-    final scale = screenSize.width / 1000.0;
+    final scale = screenSize.width / 606.0; // v3 map source width
     final dx = screenSize.width / 2 - coords.dx * scale;
     final dy = screenSize.height / 2 - coords.dy * scale;
     _transformCtrl.value = Matrix4.identity()
@@ -100,8 +100,8 @@ class _FlameGameMapState extends State<FlameGameMap> {
         behavior: HitTestBehavior.translucent,
         onTapUp: _onTapUp,
         child: SizedBox(
-          width: 1000,
-          height: 1000,
+          width: 606, // v3 map source dimensions (606x1280)
+          height: 1280,
           child: GameWidget(
             game: _flameGame,
           ),

@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
 
-/// Geographic coordinates for each location on the 1000x1000 pixel map.
+/// Geographic coordinates for each location on the map background.
 ///
-/// Extracted from pixel_map_overlay_painter.dart so it can be shared
-/// by both the legacy CustomPainter and the new FlameGame components.
+/// v3: measured directly on `assets/images/map_background_v3.jpg`
+/// (606x1280 source image, real Atlanta highway layout).
+/// Values are in the source-image pixel space; the map renderer
+/// scales them to display space.
 const Map<String, Offset> locationCoords = {
-  'cobb': Offset(182, 300),
-  'buckhead': Offset(534, 170),
-  'midtown': Offset(534, 340),
-  'five_points': Offset(534, 580),
-  'west_end': Offset(288, 530),
-  'little_five': Offset(706, 520),
-  'decatur': Offset(834, 610),
-  'east_point': Offset(375, 710),
-  'hapeville': Offset(470, 860),
-  'college_park': Offset(342, 810),
-  'airport': Offset(524, 910),
+  'cobb': Offset(148, 300),
+  'buckhead': Offset(330, 500),
+  'midtown': Offset(312, 618),
+  'little_five': Offset(395, 627),
+  'decatur': Offset(478, 636),
+  'west_end': Offset(255, 690),
 };

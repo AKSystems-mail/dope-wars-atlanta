@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import '../models/location.dart';
 import '../services/game_service.dart';
@@ -32,6 +33,10 @@ class DopeWarsGame extends FlameGame {
   @override
   Future<void> onLoad() async {
     super.onLoad();
+
+    // v3: real Atlanta highway map as the base layer
+    final bg = await images.load('map_background_v3.jpg'); // images/ prefix is implicit
+    add(SpriteComponent(sprite: Sprite(bg), size: Vector2(606, 1280)));
 
     // ── Build set of travelable connections (undirected) ──
     final travelableIds = Location.travelable.map((l) => l.id).toSet();
@@ -70,6 +75,7 @@ class DopeWarsGame extends FlameGame {
   }
 
   void _addConnections({required String routeType, required Color color}) {
+    if (routeType == 'marta') return; // v3: MARTA lines removed from map
     final drawn = <String>{};
     for (final loc in Location.defaults) {
       final connections = routeType == 'marta'

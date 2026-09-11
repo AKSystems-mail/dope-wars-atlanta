@@ -429,8 +429,13 @@ class GameState {
         'gameHour': gameHour,
       };
 
+  /// A save written before the v3 map rework may hold a location id that no
+  /// longer exists - snap it to the default so the state stays navigable.
+  static String _knownLocationId(Object? id) =>
+      id is String && Location.defaults.any((l) => l.id == id) ? id : 'buckhead';
+
   factory GameState.fromJson(Map<String, dynamic> json) => GameState(
-        currentLocationId: json['currentLocationId'] as String? ?? 'buckhead',
+        currentLocationId: _knownLocationId(json['currentLocationId']),
         cash: json['cash'] as int? ?? 4000,
         debt: json['debt'] as int? ?? 10000,
         bankBalance: json['bankBalance'] as int? ?? 0,

@@ -122,8 +122,11 @@ class Location {
 
   ];
 
+  /// Never throws: a save written before the v3 map rework can hold a location
+  /// id that no longer exists, and an uncaught StateError here takes down the
+  /// whole game screen (release builds show only a gray box for it).
   static Location getById(String id) {
-    return defaults.firstWhere((l) => l.id == id);
+    return defaults.firstWhere((l) => l.id == id, orElse: () => defaults.first);
   }
 
   /// Returns only the 6 currently travelable locations

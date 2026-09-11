@@ -77,6 +77,16 @@ void main() {
       expect(s.debt, 0);
     });
 
+    test('payDebt charges only what is owed when over-typed', () {
+      final s = GameState(cash: 10000, debt: 500);
+      final before = s.netWorth;
+      expect(s.payDebt(10000), isTrue);
+      expect(s.debt, 0);
+      expect(s.cash, 9500, reason: 'the excess 9500 must not be burned');
+      expect(s.netWorth, before,
+          reason: 'paying debt converts cash 1:1, so net worth is unchanged');
+    });
+
     test('payDebt rejects when cash is short (state unchanged)', () {
       final s = GameState(cash: 100, debt: 400);
       expect(s.payDebt(400), isFalse);

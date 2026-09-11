@@ -380,10 +380,11 @@ class GameState {
   // ---- COUNCILMAN ----
 
   bool payDebt(int amount) {
-    if (cash < amount) return false;
-    cash -= amount;
-    debt -= amount;
-    if (debt < 0) debt = 0;
+    // Charge only what's actually owed — an over-typed amount must not burn the excess.
+    final payment = amount > debt ? debt : amount;
+    if (cash < payment) return false;
+    cash -= payment;
+    debt -= payment;
     return true;
   }
 

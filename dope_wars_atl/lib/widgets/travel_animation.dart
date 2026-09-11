@@ -1,10 +1,10 @@
-import 'dart:math';
+import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../models/location.dart';
 import '../theme/app_theme.dart';
 
-/// Full-screen travel animation overlay shown for ~5 seconds
-/// before the player arrives at the destination.
+/// Full-screen travel animation overlay showing the actual transport sprite.
 class TravelAnimationScreen extends StatefulWidget {
   final String transportType; // 'marta', 'ryde', 'drive'
   final Location destination;
@@ -39,23 +39,10 @@ class _TravelAnimationScreenState extends State<TravelAnimationScreen>
     }
   }
 
-  String get _emoji {
-    switch (widget.transportType) {
-      case 'marta':
-        return '🚇';
-      case 'ryde':
-        return '🚗';
-      case 'drive':
-        return '🏎️';
-      default:
-        return '📍';
-    }
-  }
-
   Color get _accentColor {
     switch (widget.transportType) {
       case 'marta':
-        return AppTheme.midtown; // teal
+        return AppTheme.midtown; 
       case 'ryde':
         return AppTheme.accentPink;
       case 'drive':
@@ -68,12 +55,13 @@ class _TravelAnimationScreenState extends State<TravelAnimationScreen>
   @override
   void initState() {
     super.initState();
+    // 1.5s travel duration as per spec
     _controller = AnimationController(
-      duration: const Duration(seconds: 5),
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
     _progress = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _controller, curve: Curves.linear),
     );
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
@@ -94,136 +82,175 @@ class _TravelAnimationScreenState extends State<TravelAnimationScreen>
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, _) {
-            return Column(
-              children: [
-                const Spacer(flex: 2),
-                // Transport icon with bounce
-                AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, _) {
-                    final bounce =
-                        sin(_progress.value * pi * 4) * 10;
-                    return Transform.translate(
-                      offset: Offset(0, bounce),
-                      child: Text(
-                        _emoji,
-                        style: TextStyle(
-                          fontSize: 72,
+        child: Stack(
+          children: [
+            // 1. The actual Sprite Animation (Center-screen)
+            Center(
+              child: AnimatedBuilder(
+                animation: _controller,
+                builder: (context, _) {
+                  return _buildSpriteWidget();
+                },
+              ),
+            ),
+            // 2. The UI Overlay
+            IgnorePointer(
+              child: Column(
+                children: [
+                  const Spacer(flex: 2),
+                  Text(
+                    _actionLabel,
+                    style: AppTheme.jersey10(size: 14, color: _accentColor),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.destination.name,
+                    style: AppTheme.jersey15(size: 24, color: _accentColor),
+                  ),
+                  const SizedBox(height: 24),
+                  // Progress bar
+                  Container(
+                    width: 200,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: AppTheme.card,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: _progress.value,
+                      child: Container(
+                        decoration: BoxDecoration(
                           color: _accentColor,
+                          borderRadius: BorderRadius.circular(3),
                         ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-                // Action label
-                Text(
-                  _actionLabel,
-                  style: AppTheme.jersey10(size: 14,
-                    color: _accentColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // Destination name
-                Text(
-                  widget.destination.name,
-                  style: AppTheme.jersey15(size: 24,
-                    color: _accentColor,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Progress bar
-                Container(
-                  width: 200,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: AppTheme.card,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  child: FractionallySizedBox(
-                    alignment: Alignment.centerLeft,
-                    widthFactor: _progress.value,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: _accentColor,
-                        borderRadius: BorderRadius.circular(3),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                // Location subtitle
-                Text(
-                  widget.destination.description,
-                  style: AppTheme.jersey15(size: 12,
-                    color: AppTheme.textSecondary,
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.destination.description,
+                    style: AppTheme.jersey15(size: 12, color: AppTheme.textSecondary),
                   ),
-                ),
-                const Spacer(flex: 2),
-                // Road / track animation at bottom
-                SizedBox(
-                  height: 40,
-                  child: Stack(
-                    children: [
-                      // Road line
-                      Positioned(
-                        top: 18,
-                        left: 0,
-                        right: 0,
-                        child: CustomPaint(
-                          painter: _RoadLinePainter(
-                            progress: _progress.value,
-                            color: _accentColor,
-                          ),
-                          size: const Size(double.infinity, 4),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 40),
-              ],
-            );
-          },
+                  const Spacer(flex: 2),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  Widget _buildSpriteWidget() {
+    if (widget.transportType == 'drive') {
+      return _DriveSprite(
+        controller: _controller,
+        assetPath: 'assets/images/travel/drive_sheet.png',
+      );
+    }
+    // Placeholder for MARTA/Ryde
+    return Text(widget.transportType.toUpperCase(), 
+      style: TextStyle(color: _accentColor, fontSize: 24));
+  }
 }
 
-/// Paints dashed road lines that scroll left-to-right
-class _RoadLinePainter extends CustomPainter {
-  final double progress;
-  final Color color;
+class _DriveSprite extends StatefulWidget {
+  final AnimationController controller;
+  final String assetPath;
 
-  _RoadLinePainter({required this.progress, required this.color});
+  const _DriveSprite({
+    required this.controller,
+    required this.assetPath,
+  });
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color.withValues(alpha: 0.6)
-      ..strokeWidth = 2;
+  State<_DriveSprite> createState() => _DriveSpriteState();
+}
 
-    const dashWidth = 20.0;
-    const gapWidth = 15.0;
-    final totalWidth = dashWidth + gapWidth;
-    final offset = (progress * totalWidth * 3) % totalWidth;
+class _DriveSpriteState extends State<_DriveSprite> {
+  ui.Image? _spriteSheet;
+  bool _loaded = false;
 
-    double x = -offset;
-    while (x < size.width) {
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x + dashWidth, 0),
-        paint,
-      );
-      x += totalWidth;
+  @override
+  void initState() {
+    super.initState();
+    _loadSheet();
+  }
+
+  Future<void> _loadSheet() async {
+    try {
+      final ImageProvider provider = AssetImage(widget.assetPath);
+      final ImageStream stream = provider.resolve(ImageConfiguration.empty);
+      final Completer<ui.Image> completer = Completer();
+
+      stream.addListener(ImageStreamListener((ImageInfo info, bool _) {
+        if (!_loaded) {
+          setState(() {
+            _spriteSheet = info.image;
+            _loaded = true;
+          });
+          completer.complete(info.image);
+        }
+      }));
+      await completer.future;
+    } catch (e) {
+      debugPrint('Failed to load drive sprite: $e');
     }
   }
 
   @override
-  bool shouldRepaint(covariant _RoadLinePainter old) =>
-      old.progress != progress;
+  Widget build(BuildContext context) {
+    if (!_loaded || _spriteSheet == null) {
+      return const SizedBox(width: 128, height: 128);
+    }
+
+    return AnimatedBuilder(
+      animation: widget.controller,
+      builder: (context, child) {
+        int frameIdx = (widget.controller.value * 8).floor().clamp(0, 7);
+        
+        return CustomPaint(
+          size: const Size(256, 256),
+          painter: _SheetPainter(
+            image: _spriteSheet!,
+            frameIdx: frameIdx,
+            frameWidth: 64,
+            frameHeight: 64,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SheetPainter extends CustomPainter {
+  final ui.Image image;
+  final int frameIdx;
+  final double frameWidth;
+  final double frameHeight;
+
+  _SheetPainter({
+    required this.image,
+    required this.frameIdx,
+    required this.frameWidth,
+    required this.frameHeight,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double scale = 4.0;
+    final Rect src = Rect.fromLTWH(frameIdx * frameWidth, 0, frameWidth, frameHeight);
+    final Rect dst = Rect.fromLTWH(
+      (size.width - (frameWidth * scale)) / 2,
+      (size.height - (frameHeight * scale)) / 2,
+      frameWidth * scale,
+      frameHeight * scale,
+    );
+
+    canvas.drawImageRect(image, src, dst, Paint()..filterQuality = FilterQuality.none);
+  }
+
+  @override
+  bool shouldRepaint(covariant _SheetPainter old) => old.frameIdx != frameIdx;
 }

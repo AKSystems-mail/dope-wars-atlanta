@@ -30,7 +30,6 @@ class FlameGameMap extends StatefulWidget {
 class _FlameGameMapState extends State<FlameGameMap> {
   final TransformationController _transformCtrl = TransformationController();
   late DopeWarsGame _flameGame;
-  bool _gameReady = false;
 
   @override
   void initState() {
@@ -39,11 +38,8 @@ class _FlameGameMapState extends State<FlameGameMap> {
       gameService: widget.game,
       currentLocationId: widget.currentLocationId,
     );
-    _flameGame.onLoad().then((_) {
-      if (mounted) {
-        setState(() => _gameReady = true);
-        _centerOnLocation(widget.currentLocationId);
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _centerOnLocation(widget.currentLocationId);
     });
   }
 
@@ -84,12 +80,6 @@ class _FlameGameMapState extends State<FlameGameMap> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_gameReady) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppTheme.accentGreen),
-      );
-    }
-
     return InteractiveViewer(
       transformationController: _transformCtrl,
       minScale: 0.5,
@@ -104,6 +94,9 @@ class _FlameGameMapState extends State<FlameGameMap> {
           height: 1280,
           child: GameWidget(
             game: _flameGame,
+            loadingBuilder: (_) => const Center(
+              child: CircularProgressIndicator(color: AppTheme.accentGreen),
+            ),
           ),
         ),
       ),

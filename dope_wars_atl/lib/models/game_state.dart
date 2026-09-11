@@ -353,12 +353,6 @@ class GameState {
     bagUsed = inventoryCount;
   }
 
-  /// Lose a percentage of cash (for encounters)
-  void loseCashPercent(double percent) {
-    final loss = (cash * percent).round().clamp(1, cash);
-    cash -= loss;
-  }
-
   bool upgradeBag(int cost, int newCapacity) {
     if (cash < cost) return false;
     cash -= cost;

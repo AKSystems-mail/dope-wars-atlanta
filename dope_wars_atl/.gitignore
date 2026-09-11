@@ -39,6 +39,12 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
+# Firebase client config. Not a secret by Google's definition (the API key is
+# app-restricted, not a credential), but this repo is public and the file is
+# trivially regenerated: Firebase console -> Project settings -> your Android
+# app -> google-services.json. Remove this line if you'd rather commit it.
+android/app/google-services.json
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile

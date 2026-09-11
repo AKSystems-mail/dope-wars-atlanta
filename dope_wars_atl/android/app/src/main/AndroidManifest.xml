@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required by Firebase Crashlytics to upload reports. Note: release builds
+         previously had NO internet permission, which is why google_fonts could
+         never fetch its fonts. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="dope_wars_atl"
         android:name="${applicationName}"

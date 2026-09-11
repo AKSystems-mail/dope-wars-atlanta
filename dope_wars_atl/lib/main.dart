@@ -1,5 +1,10 @@
+import 'dart:ui' show PlatformDispatcher;
+
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:provider/provider.dart';
 import 'theme/app_theme.dart';
 import 'services/game_service.dart';
@@ -9,7 +14,7 @@ import 'widgets/hud_widget.dart';
 import 'widgets/encounter_overlay.dart';
 import 'widgets/ad_overlay.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setSystemUIOverlayStyle(
@@ -20,6 +25,47 @@ void main() {
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
+
+  // Crash reporting to Firebase (project dw-atl). Deliberately best-effort: if
+  // Firebase cannot start - offline first launch, or web where there is no
+  // google-services config - the game must still run.
+  try {
+    await Firebase.initializeApp();
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+  } catch (_) {
+    // Best effort only. The ErrorWidget below still surfaces errors on screen.
+  }
+
+  // Release builds otherwise paint a featureless gray box for any build/paint
+  // exception, which makes a device-only bug nearly impossible to diagnose.
+  // Show the actual message instead. Debug keeps Flutter's richer red screen.
+  // Deliberately built from raw widgets only: ErrorWidget must not depend on
+  // AppTheme or fonts, which could themselves be what is failing.
+  if (kReleaseMode) {
+    ErrorWidget.builder = (details) => Directionality(
+          textDirection: TextDirection.ltr,
+          child: Container(
+            color: const Color(0xFF1a1625),
+            padding: const EdgeInsets.all(12),
+            alignment: Alignment.topLeft,
+            child: SingleChildScrollView(
+              child: Text(
+                '${details.exceptionAsString()}\n\n${details.stack ?? ''}',
+                style: const TextStyle(
+                  color: Color(0xFFff4081),
+                  fontSize: 10,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+          ),
+        );
+  }
+
   runApp(const DopeWarsApp());
 }
 

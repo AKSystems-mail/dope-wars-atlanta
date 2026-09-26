@@ -318,12 +318,82 @@ is the mode's honest failure state.
 duration. The existing three-tier table applies to Progressive as-is, because D12 gives
 Progressive the same clock.
 
+### Settled this round (continued)
+
+**D16 — Ending presentation.**
+- **Classic:** an end screen at the cap, as designed.
+- **Progressive:** you may **play past the win**. After the win, heat rises continuously
+  and **decay is disabled** — laying low no longer cools you. The run ends when you are
+  forced out: out of product, or out of money. The win becomes the starting gun for
+  "how long can you last," which fits a mode whose goal is owning the city: owning it is
+  the achievement, surviving the aftermath is the score.
+
+**D17 — The informant's fee.** He never takes the hood's own cheap product — anything
+else, 1–5 units. *Reading recorded:* this is a category rule ("anything but the local
+cheap good"), not a specific named item.
+
+That distinction matters. If he names one product, the player has to leave, source it,
+and then hope to find him again — turning a single unlock into an unpredictable
+multi-day loop. The category rule keeps the fee payable out of whatever is in the bag,
+so the cost stays in goods rather than in days, which is the tension D13 was after.
+**If the intent is a named product, it needs a "he waits until you return" rule.**
+
+### The 30-day math (worked, not estimated)
+
+Interest is **not** the binding constraint. Never servicing the debt, at 2%/day:
+
+| Tier | 30 days | 60 days | 90 days |
+|---|---|---|---|
+| Easy ($6k cash / $5k debt) | $3,057 | $10,405 | $23,716 |
+| Normal ($4k / $10k) | $14,114 | $28,810 | $55,431 |
+| Hard ($2k / $15k) | $25,170 | $47,215 | $87,147 |
+
+One ring leg with $4,000 of capital nets roughly **$3,400–3,500**, and profit grows with
+capital up to the 100-unit bag cap. Normal/30 days needs about **$14,100 — three to five
+legs.** That is comfortable inside 30 days.
+
+The earlier note in this log said 30 days was probably unwinnable. **That was wrong**, and
+the arithmetic corrects it: money is not what binds.
+
+**The informant is what binds.** Unlocks are paid in arrivals, because he appears on a roll:
+
+| Appearance p | Arrivals for 4 unlocks | For 5 unlocks | P(10 arrivals, no sighting) |
+|---|---|---|---|
+| 0.15 | 26.7 | 33.3 | 19.7% |
+| 0.25 | 16.0 | 20.0 | 5.6% |
+| 0.40 | 10.0 | 12.5 | 0.6% |
+| 0.50 | 8.0 | 10.0 | 0.1% |
+
+Therefore:
+
+1. **Set p at ~0.4–0.5 once armed.** At 0.25 the hunt eats two-thirds of a 30-day budget;
+   at 0.15 it does not fit at all.
+2. **Bound the tail — the one rule worth adding regardless of duration.** Armed means he
+   appears **within 3 arrivals.** Randomness survives; the run-ruining unlucky hunt does
+   not. At p=0.25 about one run in eighteen sees nothing across ten arrivals, and that
+   player simply loses without ever being able to tell why.
+3. **Do not touch the interest rate to make 30 days fit.** The money requirement is
+   already comfortable; scaling it would flatten the economy to solve a problem it doesn't
+   have.
+4. **If shorter runs still feel tight, scale the goal, not the player:** 30 days could
+   require 4 of 6 hoods, 60 require 5, 90 require all six. "Own the city" then belongs to
+   the 90-day run, which is honest.
+
+Hunting and trading are the same activity — you meet him while you travel — so these
+budgets **overlap rather than add.** That is what makes 30 days demanding instead of
+impossible.
+
 ### Still open
 
-1. **Progressive's ending presentation** — end screen, or keep playing past the win?
-   The mechanics are settled (the cap ends the run); this is only what the player sees.
-2. **What the informant asks for** — which product and quantity, per tier. Content and
-   tuning, not structure.
+1. **How many hoods at the start?** The original brainstorm said Buckhead **and Decatur**;
+   D4 only settled Buckhead. This changes the unlock count from 5 to 4, and therefore the
+   whole hunt budget above.
+2. **The MARTA card.** Also from the first brainstorm — "find a MARTA card to ride MARTA in
+   the first two turns." Never resolved. For it to mean anything, MARTA must be unavailable
+   at the start, making the opening road-only.
+3. **Post-win bailout.** Does the councilman still bail you out after the Progressive win?
+   Bailouts extend the squeeze; the cleanest reading of "until they have to end the game"
+   is that they stop.
 
 ### Implementation traps — no decision needed, but they must be in the spec
 
@@ -359,6 +429,12 @@ Progressive the same clock.
    learn, rather than a distribution re-rolled per frame. It should therefore land
    **first** in the pricing phase, before multipliers, because everything else is built
    on a price that currently doesn't hold still.
+9. **What the multiplier multiplies is not pinned.** "+50% sell" is ambiguous: +50% on the
+   base *sell* price, or +50% on the *buy* price. D1 already redefined the same-hood sell
+   as ~85–90% of buy, so the multiplier almost certainly has to apply to that redefined
+   sell — but one explicit formula is needed, e.g.
+   `sell = buy × margin × premiumMult`, because every profit figure in this log assumes a
+   spread and the spread is a money path.
 
 ### Tuning, not design — defer to build
 

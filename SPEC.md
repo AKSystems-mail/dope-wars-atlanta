@@ -242,6 +242,16 @@ modes — it must not be Progressive-only, or Classic loses a system it already 
 - **Final Score** = Cash + Bank Balance + (Inventory × estimated value) − Total Debt
 - Highest net worth wins
 
+### Progressive: Win & End
+
+- **Win:** own the city within the cap — all six hoods unlocked and councilman debt
+  cleared before the days run out.
+- **The win does not end the run.** After it, heat rises continuously and **decay is
+  disabled** — laying low no longer cools you. The run ends when you run out of product
+  or out of money.
+
+See `docs/DESIGN_DECISIONS.md` D12 and D16.
+
 ---
 
 ## 13. Settings

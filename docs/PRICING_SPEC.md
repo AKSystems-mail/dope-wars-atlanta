@@ -18,28 +18,44 @@
 ## 2. The price model
 
 Today `GameState.getPrice()` takes a base price and rolls noise, and every hood references
-the same `Product.defaults` instances — so location has no economic effect at all. The
-model below replaces it. **Sell is always derived from the local buy price**, so there is
-one source of truth and no separate sell base that can drift.
+the same `Product.defaults` instances — so location has no economic effect at all.
+
+**The model is one local *level* per (hood, product), with buy and sell both derived from
+it.** That makes the same-hood margin structural rather than a rule someone has to remember.
 
 ```
-buy(p, hood)  = round(base(p) × buyMult(hood, p) × jitter)
-sell(p, hood) = round(buy(p, hood) × SAME_HOOD_MARGIN × sellMult(hood, p))
+level(p, hood) = base(p) × valueMult(hood, p) × eventMult(hood, p) × jitter
 
-jitter          = uniform(0.85, 1.15)      # rolled once per arrival, then held
-SAME_HOOD_MARGIN = 0.875                   # D1: a round trip in one hood always loses
-buyMult(hood, p)  = 0.70 if p is hood's cheap source, else 1.00
-sellMult(hood, p) = 1.50 if p is hood's premium market, else 1.00
+buy(p, hood)  = round(level × 1.0625)
+sell(p, hood) = min(round(level × 0.9375), buy - 1)
+
+jitter     = uniform(0.85, 1.15), rolled ONCE per arrival and held
+valueMult  = 0.70 at the product's cheap source · 1.50 at its premium market · 1.00 otherwise
+eventMult  = 1.50 on a demand spike · 0.30 on a market flood · 1.00 otherwise
 ```
 
-Worked example, shrooms (base 150): buy in its cheap hood at `150 × 0.70 = 105`; sell in
-its premium hood at `105 / 0.70 × 0.875 × 1.50 = 196.9`. Spread 1.875x base, profit
-≈ 0.61 × base per unit.
+`sell / buy = 0.882` always — the "slightly negative" margin from D1. A round trip in one
+hood cannot profit, whatever the multipliers or events do.
 
-**Retires `baseSellPrice` and `highPrice`.** Demand Spike and Market Flood become
-multipliers on this same pipeline (spike ×1.50 on sell, flood ×0.30 on buy) instead of
-absolute values, so there is one formula rather than two systems fighting (trap 2). This
-changes the product table in `SPEC.md` §3 and needs a matching doc edit.
+**Why not `sell = buy × 0.875 × premiumMult` (the first draft in this file):** it allowed a
+buy-back loop. Any sell-side multiplier above `1 / 0.875 = 1.143` makes local selling
+profitable, and the premium multiplier is 1.50 — so buying a premium hood's own product and
+selling it straight back would have printed money, repeatably, in one visit. Driving both
+sides off one level is immune to that, and it means the `same_hood_loses` check is a
+regression guard rather than the only thing standing between the game and an exploit.
+
+Worked example, shrooms (base 150): buy at its cheap source `150 × 0.70 × 1.0625 = 111.6`;
+sell at its premium market `150 × 1.50 × 0.9375 = 210.9`. Spread ≈ 1.89x, profit ≈ 0.66 ×
+base per unit.
+
+**Events move the level, not one side.** A spike lifts the level, so both prices rise in
+step: it is a *destination* premium (bring goods to the hood that wants them), never a local
+buy-back loop. This also means events and hood multipliers compose as one formula rather
+than two systems fighting (trap 2).
+
+**Retires `baseSellPrice` and `highPrice`** — both become derivable. Demand Spike and Market
+Flood stop being absolute-value pushes and become `eventMult`. The product table in
+`SPEC.md` §3 loses its Min/Max columns.
 
 ---
 

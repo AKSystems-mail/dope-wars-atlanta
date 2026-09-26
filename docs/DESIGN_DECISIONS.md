@@ -201,19 +201,19 @@ it isn't state the player owns. That also keeps it out of Classic's save format.
 
 ---
 
-## D9 — Heat surfacing: state, not a number (PROPOSED)
+## D9 — Heat surfacing: state, not a number (settled)
 
-Heat is **mechanically** a number. The open question is what the player sees.
+Heat is **mechanically** a number; the player never sees the number.
 
-**Recommendation: no meter, no number — show a state.**
+**Settled: no meter, no number — show a state.**
 
 - A 0-100 bar invites min-maxing the police instead of playing the street, and it
   adds a HUD element competing with the legibility pass that just made everything
   bigger.
 - **Classic keeps heat invisible**, preserving the original's "random cops" feel.
   The player should suspect, not audit.
-- **Progressive may show a bare state word** (Cool / Warm / Hot), or nothing, with
-  the signal arriving diegetically — cops get more frequent and the world reacts.
+- **Progressive shows a bare state word** — Cool / Warm / Hot — and nothing more. The
+  signal also arrives diegetically: cops get more frequent and the world reacts.
 - Cost is identical either way: the number exists internally, the UI simply doesn't
   print it.
 
@@ -233,9 +233,15 @@ different things are called "the premium":
 So the premium is live every single time; there's just nothing to sell into unless the
 shelf has it. A trip that finds no oxy costs fare, a day, and leaves you carrying.
 
-**Recommended dial: weight the premium's appearance above random but below
-guaranteed — target ~2 visits in 3.** Keeps it a hunt, removes the slot-machine feel
-of a trip that was simply wasted. It's one number in one place.
+**Settled: fully random. No weighting.** The premium's appearance is whatever the
+per-visit roll gives — expect it on roughly half to three-quarters of visits. A trip
+that finds nothing is accepted as the original's risk, consistent with the sell rule
+in D8.
+
+Consequence worth naming: the player **cannot distinguish "they don't buy this" from
+"they don't have it today"** — both look identical at the shop. That is exactly why
+the surfacing question below matters. Randomness is only legible against a known
+baseline.
 
 **It also has to be learnable.** An invisible ring makes the design read as noise
 rather than depth, so surface the stable facts and hide only the volatile one:
@@ -255,14 +261,13 @@ and it costs nothing because both systems already exist.
 
 ## Open — needs a decision before spec
 
-1. **Heat surfacing (D9):** invisible in Classic, bare state word in Progressive —
-   agree?
-2. **Premium appearance odds (D10):** ~2 visits in 3, or leave it fully random?
-3. **Surfacing the ring on the location card (D10):** preference public, shelf
-   hidden — agree?
+1. **How the player learns the ring (D10):** hood reputation shown on the existing
+   location card, or left to pure discovery? This is the last one.
 
-Settled: **D1–D8**, with the **cheap source guaranteed at every hood** plus Buckhead's
-premium. Ring assignments approved as proposed. Threshold values approved (cash
-threshold + story beat, D4). Heat decay requires laying low, not the passage of time
-(D5). Sell rule settled: stock-limited only, no sell-anywhere, and unsellable
-inventory is intended risk (D8). DopeWars code committed and pushed (`a298fe2`).
+Settled: **D1–D10**, apart from that single question. Cheap source guaranteed at every
+hood, plus Buckhead's premium. Ring assignments approved as proposed. Threshold values
+approved (cash threshold + story beat, D4). Heat decay requires laying low, not the
+passage of time (D5). Sell rule: stock-limited only, unsellable inventory is intended
+risk (D8). Heat surfacing: no meter, no number — invisible in Classic, bare state word
+in Progressive (D9). Premium appearance: fully random (D10). DopeWars code committed
+and pushed (`a298fe2`).

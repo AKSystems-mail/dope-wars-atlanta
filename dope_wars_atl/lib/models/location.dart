@@ -8,12 +8,24 @@ class Location {
   final Color accentColor;
   final List<String> martaConnections; // location ids reachable via MARTA
   final List<String> highwayConnections; // location ids reachable via Drive/Ryde
-  final List<Product> products; // products available at this location
   final bool isBank;
   final bool isWeaponShop;
   final bool isCouncilman;
   final bool isBookbagUpgrade;
   final bool isTravelable; // false = reserved for future multiplayer mode
+
+  /// The ring — see docs/PRICING_SPEC.md §3. What this hood sells cheap, and
+  /// what it pays up for. Every product has exactly one cheap source and one
+  /// premium market across the six hoods. Cobb is the exception: no cheap
+  /// source, and it pays premium on two.
+  final String? cheapProductId;
+  final List<String> premiumProductIds;
+
+  /// True for the Progressive starting pair. Their shelves always carry BOTH
+  /// ring products, so the opening trip — the one that teaches how the ring
+  /// works — can never arrive to find nobody buying. Randomness starts after
+  /// these two hoods.
+  final bool guaranteeWholeRing;
 
   const Location({
     required this.id,
@@ -22,20 +34,44 @@ class Location {
     required this.accentColor,
     this.martaConnections = const [],
     this.highwayConnections = const [],
-    this.products = const [],
     this.isBank = false,
     this.isWeaponShop = false,
     this.isCouncilman = false,
     this.isBookbagUpgrade = false,
     this.isTravelable = true,
+    this.cheapProductId,
+    this.premiumProductIds = const [],
+    this.guaranteeWholeRing = false,
   });
 
-  Product? getProductById(String productId) {
-    try {
-      return products.firstWhere((p) => p.id == productId);
-    } catch (_) {
-      return null;
+  static Product _product(String id) =>
+      Product.defaults.firstWhere((p) => p.id == id);
+
+  static String _nameOf(String id) => _product(id).name;
+
+  /// Always on this hood's shelf, whatever the per-visit roll does. Cheap source
+  /// so a lap can always be started; both ring products at the starting pair;
+  /// and one premium at Cobb so a trip out there is never wasted.
+  List<String> get guaranteedProducts {
+    if (guaranteeWholeRing) {
+      return [
+        if (cheapProductId != null) cheapProductId!,
+        ...premiumProductIds,
+      ];
     }
+    if (cheapProductId != null) return [cheapProductId!];
+    return premiumProductIds.take(1).toList();
+  }
+
+  /// What this hood is known for, for the location card. Shown only once the
+  /// player knows the hood (Classic: first visit · Progressive: the informant).
+  String get reputationLine {
+    final parts = <String>[
+      if (cheapProductId != null) 'cheap ${_nameOf(cheapProductId!)}',
+      if (premiumProductIds.isNotEmpty)
+        'pays for ${premiumProductIds.map(_nameOf).join(' and ')}',
+    ];
+    return parts.join(' · ');
   }
 
   /// Connection rule: martaConnections mirrors the road links EXCEPT for Cobb
@@ -50,10 +86,8 @@ class Location {
       accentColor: const Color(0xFFe53935),
       martaConnections: ['midtown', 'decatur'],
       highwayConnections: ['midtown', 'decatur'],
-      products: [
-        Product.defaults[0],
-        Product.defaults[3],
-      ],
+      cheapProductId: 'powda',
+      premiumProductIds: const ['oxy'],
       isWeaponShop: true,
     ),
     Location(
@@ -66,10 +100,8 @@ class Location {
       // bidirectional; every other MARTA pair here already is.
       martaConnections: ['little_five', 'west_end', 'buckhead', 'decatur'],
       highwayConnections: ['buckhead', 'decatur', 'west_end'],
-      products: [
-        Product.defaults[0],
-        Product.defaults[2],
-      ],
+      cheapProductId: 'oxy',
+      premiumProductIds: const ['shrooms'],
       isBank: true,
     ),
     Location(
@@ -79,10 +111,8 @@ class Location {
       accentColor: const Color(0xFFab47bc),
       martaConnections: ['midtown', 'decatur'],
       highwayConnections: ['decatur'],
-      products: [
-        Product.defaults[2],
-        Product.defaults[4],
-      ],
+      cheapProductId: 'shrooms',
+      premiumProductIds: const ['acid'],
       isBookbagUpgrade: true,
     ),
     Location(
@@ -92,11 +122,9 @@ class Location {
       accentColor: const Color(0xFFfdd835),
       martaConnections: ['midtown', 'decatur'],
       highwayConnections: ['midtown', 'decatur', 'cobb'],
-      products: [
-        Product.defaults[0],
-        Product.defaults[2],
-        Product.defaults[3],
-      ],
+      cheapProductId: 'blunts',
+      premiumProductIds: const ['powda'],
+      guaranteeWholeRing: true,
       isCouncilman: true,
     ),
     Location(
@@ -106,12 +134,9 @@ class Location {
       accentColor: const Color(0xFFfb8c00),
       martaConnections: ['little_five', 'west_end', 'midtown', 'buckhead'],
       highwayConnections: ['little_five', 'midtown', 'buckhead', 'cobb', 'west_end'],
-      products: [
-        Product.defaults[0],
-        Product.defaults[1],
-        Product.defaults[2],
-        Product.defaults[4],
-      ],
+      cheapProductId: 'acid',
+      premiumProductIds: const ['blunts'],
+      guaranteeWholeRing: true,
     ),
     Location(
       id: 'cobb',
@@ -120,12 +145,9 @@ class Location {
       accentColor: const Color(0xFF78909c),
       martaConnections: [], // No MARTA access
       highwayConnections: ['buckhead', 'decatur'],
-      products: [
-        Product.defaults[0],
-        Product.defaults[1],
-      ],
+      // No cheap source: Cobb is a cash-out detour, not a ring stop.
+      premiumProductIds: const ['oxy', 'shrooms'],
     ),
-
   ];
 
   /// Never throws: a save written before the v3 map rework can hold a location

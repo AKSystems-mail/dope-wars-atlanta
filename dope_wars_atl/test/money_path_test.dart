@@ -1,22 +1,30 @@
-// Money-path invariants for GameState: pricing bounds, bank conservation,
+// Money-path invariants for GameState: pricing invariants, bank conservation,
 // debt floor, affordability rejections. Pure model logic — no widgets.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dope_wars_atl/models/game_state.dart';
+import 'package:dope_wars_atl/models/market.dart';
 import 'package:dope_wars_atl/models/weapon.dart';
 
 void main() {
   group('pricing', () {
-    test('getPrice stays inside ±variance of base', () {
-      for (var i = 0; i < 500; i++) {
-        final p = GameState.getPrice(1000);
-        expect(p, inInclusiveRange(700, 1300));
-      }
+    // The old per-call roller lived in GameState.getPrice. Market replaced it:
+    // buy and sell sit either side of one local level, so the spread is a
+    // property of the model rather than something a caller has to respect.
+    test('buy and sell sit either side of the level', () {
+      final p = Market.pricesFor(
+          base: 1000, valueMult: 1.0, eventMult: 1.0, jitter: 1.0);
+      expect(p.buy, 1063); // 1000 × 1.0625
+      expect(p.sell, 938); // 1000 × 0.9375
     });
 
-    test('getPrice with zero variance returns the base price', () {
-      for (var i = 0; i < 50; i++) {
-        expect(GameState.getPrice(1000, variance: 0), 1000);
-      }
+    test('a higher level moves both prices, never the spread', () {
+      final flat = Market.pricesFor(
+          base: 1000, valueMult: 1.0, eventMult: 1.0, jitter: 1.0);
+      final spiked = Market.pricesFor(
+          base: 1000, valueMult: 1.0, eventMult: Market.spikeEventMult, jitter: 1.0);
+      expect(spiked.buy, greaterThan(flat.buy));
+      expect(spiked.sell, greaterThan(flat.sell));
+      expect(spiked.sell / spiked.buy, closeTo(flat.sell / flat.buy, 0.01));
     });
   });
 

@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'weapon.dart';
 import 'location.dart';
+import 'market.dart';
 
 class GameState {
   String currentLocationId;
@@ -19,6 +20,14 @@ class GameState {
   int totalDaysPassed;
   String difficulty; // 'easy', 'normal', 'hard'
   bool soundEnabled;
+
+  /// The market for wherever we are right now. Resolved once per arrival and
+  /// held until the next one — see [ensureMarket] and lib/models/market.dart.
+  Market? market;
+
+  /// Hoods whose reputation the player has learned. Classic fills this by
+  /// visiting; Progressive fills it when the informant tells them.
+  Set<String> knownHoods;
 
   /// Display name for the difficulty setting
   /// 'easy' → 'Mount Paran', 'normal' → 'East Atlanta', 'hard' → 'Hapeville'
@@ -50,8 +59,11 @@ class GameState {
     this.totalDaysPassed = 0,
     this.difficulty = 'normal',
     this.soundEnabled = true,
+    this.market,
+    Set<String>? knownHoods,
   })  : inventory = inventory ?? {},
-        weaponSlots = weaponSlots ?? [WeaponSlot.fists()];
+        weaponSlots = weaponSlots ?? [WeaponSlot.fists()],
+        knownHoods = knownHoods ?? <String>{};
 
   factory GameState.fromDifficulty(String difficulty) {
     int cash, debt;
@@ -86,6 +98,34 @@ class GameState {
   bool get canCarryMore => inventoryCount < bagCapacity;
 
   int get remainingSpace => bagCapacity - inventoryCount;
+
+  // ---- MARKET ----
+
+  bool knowsHood(String hoodId) => knownHoods.contains(hoodId);
+
+  /// The market here, resolved on arrival and then held.
+  ///
+  /// Safe to call from anywhere: it re-rolls only when the hood has changed, so
+  /// the old save-with-no-market resolves exactly once and every arrival gets a
+  /// fresh shelf without any caller having to remember to ask for one.
+  ///
+  /// Arriving also teaches you the hood, which is Classic's reputation rule. The
+  /// informant adds to the same set for Progressive.
+  Market ensureMarket({Random? rng}) {
+    final existing = market;
+    if (existing != null && existing.hoodId == currentLocationId) {
+      knownHoods.add(currentLocationId);
+      return existing;
+    }
+    final resolved = Market.resolve(
+      currentLocation,
+      visitIndex: (existing?.visitIndex ?? 0) + 1,
+      rng: rng,
+    );
+    market = resolved;
+    knownHoods.add(currentLocationId);
+    return resolved;
+  }
 
   // ---- WEAPON SLOTS ----
 
@@ -401,14 +441,10 @@ class GameState {
   }
 
   // ---- PRICING ----
-
-  /// Random price variation for a product at a location
-  /// variance: normal variation range (default 0.3 = ±30%)
-  static int getPrice(int basePrice, {double variance = 0.3}) {
-    final rng = Random();
-    final variation = (basePrice * variance).round();
-    return basePrice + rng.nextInt(variation * 2 + 1) - variation;
-  }
+  //
+  // Price variation lives in Market.pricesFor. Buy and sell are derived from one
+  // local level, so a same-hood round trip loses by construction and no rebuild
+  // can change a quoted price. See docs/PRICING_SPEC.md.
 
   Map<String, dynamic> toJson() => {
         'currentLocationId': currentLocationId,
@@ -427,6 +463,8 @@ class GameState {
         'difficulty': difficulty,
         'soundEnabled': soundEnabled,
         'gameHour': gameHour,
+        'market': market?.toJson(),
+        'knownHoods': knownHoods.toList(),
       };
 
   /// A save written before the v3 map rework may hold a location id that no
@@ -457,5 +495,13 @@ class GameState {
         difficulty: json['difficulty'] as String? ?? 'normal',
         soundEnabled: json['soundEnabled'] as bool? ?? true,
         gameHour: json['gameHour'] as int? ?? 8,
+        // Absent on any save written before the pricing rework; ensureMarket
+        // resolves one on first use rather than a migration.
+        market: json['market'] == null
+            ? null
+            : Market.fromJson((json['market'] as Map).cast<String, dynamic>()),
+        knownHoods: ((json['knownHoods'] as List?) ?? const [])
+            .cast<String>()
+            .toSet(),
       );
 }

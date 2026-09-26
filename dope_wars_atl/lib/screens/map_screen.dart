@@ -58,7 +58,7 @@ class MapScreen extends StatelessWidget {
     final state = game.state;
     if (state == null) return;
     if (locationId == state.currentLocationId) {
-      _showLocationInfo(context, locationId);
+      _showLocationInfo(context, game, locationId);
       return;
     }
 
@@ -76,7 +76,7 @@ class MapScreen extends StatelessWidget {
     _showTravelOptions(context, game, destLoc);
   }
 
-  void _showLocationInfo(BuildContext context, String locationId) {
+  void _showLocationInfo(BuildContext context, GameService game, String locationId) {
     final loc = Location.getById(locationId);
     showDialog(
       context: context,
@@ -91,6 +91,13 @@ class MapScreen extends StatelessWidget {
             Text(loc.description,
                 style: AppTheme.jersey15(size: 13, color: AppTheme.textSecondary),
                 textAlign: TextAlign.center),
+            // Reputation, once the player has learned it — D11/D14.
+            if (game.state?.knowsHood(loc.id) ?? false) ...[
+              const SizedBox(height: 8),
+              Text(loc.reputationLine,
+                  style: AppTheme.jersey10(size: 10, color: AppTheme.accentGreen),
+                  textAlign: TextAlign.center),
+            ],
           ],
         ),
         actions: [
@@ -149,6 +156,14 @@ class MapScreen extends StatelessWidget {
                 style: AppTheme.jersey15(size: 20, color: dest.accentColor)),
             const SizedBox(height: 4),
             const Text('🏙️', style: TextStyle(fontSize: 36)),
+            // What the hood is known for. This is the moment it changes a
+            // decision, so it belongs here as well as on the info dialog.
+            if (state.knowsHood(dest.id)) ...[
+              const SizedBox(height: 6),
+              Text(dest.reputationLine,
+                  textAlign: TextAlign.center,
+                  style: AppTheme.jersey10(size: 10, color: AppTheme.accentGreen)),
+            ],
             const SizedBox(height: 16),
             Text('HOW TO GET THERE?',
                 style: AppTheme.jersey10(size: 10, color: AppTheme.textSecondary)),

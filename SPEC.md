@@ -44,23 +44,45 @@ See `docs/DESIGN_DECISIONS.md` D8 for the guaranteed slot and the count floor.
 
 ## 3. Products (5)
 
-| Product | Base | Min | Max |
-|---|---|---|---|
-| **Blunts / Pre Rolls** 🚬 | $60 | $40 | $120 |
-| **Oxy** 💊 | $20 | $5 | $80 |
-| **Shrooms** 🍄 | $150 | $70 | $350 |
-| **Powda** ❄️ | $120 | $60 | $325 |
-| **Acid** 🎨 | $55 | $10 | $130 |
+| Product | Base |
+|---|---|
+| **Blunts / Pre Rolls** 🚬 | $60 |
+| **Oxy** 💊 | $20 |
+| **Shrooms** 🍄 | $150 |
+| **Powda** ❄️ | $120 |
+| **Acid** 🎨 | $55 |
+
+Base is the only price a product carries. Buy and sell at a hood are both derived
+from it plus that hood's **value multiplier** — see Pricing Algorithm below, and
+`docs/PRICING_SPEC.md`.
 
 ### Pricing Algorithm
 
 **Prices are location-dependent. Profit requires travel.**
 
-- **Hood multiplier** — each hood has a cheap source (−30% buy) and a premium market (+50% sell). Full table: `docs/DESIGN_DECISIONS.md` D2 (**settled — ring approved**).
-- **Same-hood margin stays slightly negative** — sell ≈ 85–90% of buy, so a round trip in one place always loses a little. Without this a player buys and sells in one spot forever; bag capacity slows it, it does not stop it.
-- **Normal day**: price = base × hoodMultiplier × random(0.85 to 1.15)
-- **Demand spike** (~8% chance on arrival — **shipped rate**; this doc previously said 15%): one product pushed toward **max** — popup: *"Demand is through the roof! Prices are sky high!"*
-- **Market flood** (~5% chance on arrival — **shipped rate**; this doc previously said 10%): one product pushed toward **min** — popup: *"The market is flooded! Everything is cheap!"*
+Each hood has one **value multiplier** per product, applied to a single local *level*.
+Buy and sell are both derived from that level, so a same-hood round trip is a loss **by
+construction** — no rounding, event, or multiplier can make buying and selling in one
+place profitable.
+
+- **Level**: `level = base × valueMult × eventMult × jitter`
+- **Buy**: `buy = round(level × 1.0625)`
+- **Sell**: `sell = round(level × 0.9375)`, never above `buy − 1`
+- `jitter` = 0.85–1.15, rolled **once per arrival and held** (see `docs/PRICING_SPEC.md`)
+- `valueMult`: **0.70** at a product's cheap source, **1.50** at its premium market,
+  **1.00** otherwise
+- `eventMult`: **1.50** on a demand spike, **0.30** on a market flood, else 1.00
+
+Sell/buy is a fixed **0.882** — the "slightly negative" margin. Cross-hood, buying at a
+product's cheap source and selling at its premium market returns about **1.89x**. The ring
+table is in `docs/DESIGN_DECISIONS.md` D2.
+
+Both events move the **level**, so they raise and lower both sides in step. A demand spike
+is therefore a *destination* premium — bring goods to the hood that wants them — and never a
+local buy-back loop.
+
+- **Demand spike** (~15% chance on arrival): one product's level is lifted — popup: *"Demand is through the roof! Prices are sky high!"*
+- **Market flood** (~10% chance on arrival): one product's level is dropped — popup: *"The market is flooded! Everything is cheap!"*
 
 ---
 

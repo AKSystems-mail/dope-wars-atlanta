@@ -67,14 +67,14 @@ class GameScreen extends StatelessWidget {
                     children: [
                       // Market — trade right here, so the room isn't a mostly
                       // empty screen at a location with no special feature.
-                      if (state.currentLocation.products.isNotEmpty) ...[
+                      if (game.marketProducts.isNotEmpty) ...[
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
                           child: Text('MARKET',
                               style: AppTheme.jersey10(
                                   size: 11, color: AppTheme.accentGreen)),
                         ),
-                        ...state.currentLocation.products.map(
+                        ...game.marketProducts.map(
                           (p) => Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: _ProductRow(
@@ -298,7 +298,7 @@ class _ShopSheetState extends State<_ShopSheet> {
               style: AppTheme.jersey15(size: 20, color: AppTheme.accentGreen)),
           ),
           const SizedBox(height: 16),
-          ...widget.location.products.map((product) => _ProductRow(
+          ...widget.game.marketProducts.map((product) => _ProductRow(
                 game: widget.game,
                 product: product,
                 onResult: (ok, msg) {

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:math';
 import '../models/game_state.dart';
 import '../models/location.dart';
+import '../models/market.dart';
 import '../models/product.dart';
 import '../models/weapon.dart';
 import '../services/save_service.dart';
@@ -24,9 +25,7 @@ class GameService extends ChangeNotifier {
   String? _currentAdAsset;
   bool _showAd = false;
 
-  // Pricing events (transient per-visit)
-  String? _demandSpikeProduct;
-  String? _marketFloodProduct;
+  // Pricing events now live on the resolved Market, not as loose fields.
 
   // Game-over dialog state
   String _gameOverMessage = '';
@@ -39,8 +38,13 @@ class GameService extends ChangeNotifier {
   bool get showEncounter => _showEncounter;
   String? get currentAdAsset => _currentAdAsset;
   bool get showAd => _showAd;
-  String? get demandSpikeProduct => _demandSpikeProduct;
-  String? get marketFloodProduct => _marketFloodProduct;
+  /// The market here — resolved on arrival, held for the whole visit. Asking for
+  /// it is always safe: it re-rolls only when the hood has changed.
+  Market? get market => _state == null ? null : _state!.ensureMarket();
+
+  /// The shelf here: what can be bought or sold this visit. You can only trade
+  /// what a hood stocks — see docs/DESIGN_DECISIONS.md D8.
+  List<Product> get marketProducts => market?.shelfProducts ?? const [];
   String get gameOverMessage => _gameOverMessage;
   bool get showGameOver => _showGameOver;
 
@@ -74,7 +78,6 @@ class GameService extends ChangeNotifier {
     _state = GameState.fromDifficulty(difficulty);
     _state!.maxDays = gameDuration;
     await _saveService.delete();
-    _clearPricingEvents();
     _showGameOver = false;
     _gameOverMessage = '';
     notifyListeners();
@@ -137,6 +140,11 @@ class GameService extends ChangeNotifier {
     // Play MARTA chime
     if (_state!.soundEnabled) sound.playMartaChime();
 
+    // Arrival: resolve this visit's shelf and prices, and learn the hood. Done
+    // before the encounter checks so an early return cannot leave the previous
+    // hood's market in place.
+    _state!.ensureMarket();
+
     _encounterText = '';
     _encounterChoices = null;
     _showEncounter = false;
@@ -155,9 +163,6 @@ class GameService extends ChangeNotifier {
       await autoSave();
       return true;
     }
-
-    // Pricing events on arrival
-    _checkPricingEvents();
 
     // Check game over
     _checkGameOver();
@@ -189,11 +194,12 @@ class GameService extends ChangeNotifier {
     // Play car horn for Ryde
     if (_state!.soundEnabled) sound.playCarHorn();
 
+    // Arrival: resolve this visit's shelf and prices (see travelByMarta).
+    _state!.ensureMarket();
+
     _encounterText = '';
     _encounterChoices = null;
     _showEncounter = false;
-    _clearPricingEvents();
-
     if (_checkRydeEncounter()) {
       notifyListeners();
       await autoSave();
@@ -218,7 +224,6 @@ class GameService extends ChangeNotifier {
       return true;
     }
 
-    _checkPricingEvents();
     _checkGameOver();
 
     notifyListeners();
@@ -243,11 +248,12 @@ class GameService extends ChangeNotifier {
     // Play car horn for Drive
     if (_state!.soundEnabled) sound.playCarHorn();
 
+    // Arrival: resolve this visit's shelf and prices (see travelByMarta).
+    _state!.ensureMarket();
+
     _encounterText = '';
     _encounterChoices = null;
     _showEncounter = false;
-    _clearPricingEvents();
-
     if (_checkDriveEncounter()) {
       notifyListeners();
       await autoSave();
@@ -272,7 +278,6 @@ class GameService extends ChangeNotifier {
       return true;
     }
 
-    _checkPricingEvents();
     _checkGameOver();
 
     notifyListeners();
@@ -562,41 +567,29 @@ class GameService extends ChangeNotifier {
 
   // ---- SHOPPING ----
 
-  /// Returns the effective buy price considering pricing events
-  int getBuyPrice(Product product) {
-    if (_demandSpikeProduct == product.id) {
-      return product.highPrice;
-    }
-    if (_marketFloodProduct == product.id) {
-      return (product.baseBuyPrice * 0.3).round().clamp(1, product.baseBuyPrice);
-    }
-    return GameState.getPrice(product.baseBuyPrice);
-  }
+  /// This visit's buy price, straight from the resolved market. Held, so the
+  /// number the shop shows is the number the shop charges.
+  int getBuyPrice(Product product) => market?.buyPriceOf(product.id) ?? 0;
 
-  int getSellPrice(Product product) {
-    if (_demandSpikeProduct == product.id) {
-      return (product.highPrice * 0.8).round(); // 80% of high price
-    }
-    if (_marketFloodProduct == product.id) {
-      return (product.baseSellPrice * 0.3).round().clamp(1, product.baseSellPrice);
-    }
-    return GameState.getPrice(product.baseSellPrice, variance: 0.2);
-  }
+  int getSellPrice(Product product) => market?.sellPriceOf(product.id) ?? 0;
 
-  /// Get the displayed note about a pricing event for a product
+  /// The note shown when this visit's event is touching a product.
   String? getPriceNote(Product product) {
-    if (_demandSpikeProduct == product.id) {
-      return '🔥 DEMAND SPIKE';
-    }
-    if (_marketFloodProduct == product.id) {
-      return '🌊 MARKET FLOOD';
-    }
+    final m = market;
+    if (m == null) return null;
+    if (m.spikeProduct == product.id) return '🔥 DEMAND SPIKE';
+    if (m.floodProduct == product.id) return '🌊 MARKET FLOOD';
     return null;
   }
 
   Future<bool> buyProduct(Product product, int quantity) async {
     if (_state == null) return false;
-    final price = getBuyPrice(product);
+    final m = _state!.ensureMarket();
+    // Stock-limited: you can only buy what this hood trades (D8).
+    if (!m.has(product.id)) return false;
+    final price = m.buyPriceOf(product.id) ?? 0;
+    // A zero price would be a free purchase. Never let that through.
+    if (price <= 0) return false;
     final total = price * quantity;
     if (_state!.cash < total) return false;
     if (_state!.remainingSpace < quantity) return false;
@@ -615,10 +608,11 @@ class GameService extends ChangeNotifier {
     final invQty = _state!.inventory[productId]!;
     final qty = quantity > invQty ? invQty : quantity;
 
-    final product = currentLocation.getProductById(productId);
-    if (product == null) return false;
-
-    final price = getSellPrice(product);
+    // Stock-limited: you can only sell what this hood trades (D8).
+    final m = _state!.ensureMarket();
+    if (!m.has(productId)) return false;
+    final price = m.sellPriceOf(productId) ?? 0;
+    if (price <= 0) return false;
     _state!.cash += price * qty;
     _state!.removeFromInventory(productId, qty);
     if (_state!.soundEnabled) sound.playCashRegister();
@@ -700,33 +694,10 @@ class GameService extends ChangeNotifier {
   }
 
   // ---- PRICING EVENTS ----
-
-  void _checkPricingEvents() {
-    _clearPricingEvents();
-
-    // ~15% chance: demand spike (one product pushed toward high price)
-    if (Random().nextInt(100) < 15) {
-      final products = currentLocation.products;
-      if (products.isNotEmpty) {
-        _demandSpikeProduct = products[Random().nextInt(products.length)].id;
-      }
-    }
-
-    // ~10% chance: market flood (one product pushed toward minimum)
-    if (Random().nextInt(100) < 10) {
-      final products = currentLocation.products;
-      if (products.isNotEmpty) {
-        final candidate = products[Random().nextInt(products.length)].id;
-        // Don't flood the same product that's spiking
-        _marketFloodProduct = candidate == _demandSpikeProduct ? null : candidate;
-      }
-    }
-  }
-
-  void _clearPricingEvents() {
-    _demandSpikeProduct = null;
-    _marketFloodProduct = null;
-  }
+  //
+  // Both events are rolled when the market resolves on arrival and live on the
+  // Market itself, so they move the local level and cannot open a buy-back
+  // spread. See lib/models/market.dart.
 
   // ---- GAME OVER / WIN ----
 

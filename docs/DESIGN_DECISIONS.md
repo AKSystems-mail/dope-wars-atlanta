@@ -48,7 +48,7 @@ it does not stop it. Unbounded money in Buckhead.
 
 ---
 
-## D2 — Product preference table (PROPOSED — not spec yet)
+## D2 — Product preference table (SETTLED — ring approved)
 
 Each of the 5 products has exactly **one cheap source** and **one premium market**,
 forming a ring through all six hoods:
@@ -72,17 +72,11 @@ cheap supply**. It's a cash-out detour, not a ring stop — road-only, most
 expensive to reach, fewest products. That gives it a role instead of being a
 sixth generic market.
 
-**Supporting rules (PROPOSED):**
+**Magnitudes vary ±10–15% per run; hood personalities do not.** Learn the city once,
+relearn the margins each run. Fully randomizing *which* hood wants *what* would
+destroy the mental-atlas feel that makes Progressive work.
 
-1. **Sell anything anywhere.** The shop shows what the hood stocks for buying, plus
-   your bag as sellable. Without this, a premium in a hood that doesn't stock the
-   product is meaningless. This is also the original's rule.
-2. **Each hood always stocks its cheap-source product**, so the ring is always
-   runnable. Other slots stay randomized as they are today (`SPEC.md` §2).
-3. **Hood personalities are stable; magnitudes vary ±10–15% per run.** Learn the
-   city once, relearn the margins each run. Full per-run randomization of *which*
-   hood wants *what* would destroy the mental-atlas feel that makes Progressive
-   work.
+**Shop and availability rules: see D8.**
 
 ---
 
@@ -172,12 +166,62 @@ any of it today.
 
 ---
 
+## D8 — Availability, shelves, and the sell rule (settled)
+
+**Stable ring, volatile shelves.**
+
+- **Every hood always stocks its cheap-source product**, so the ring is always
+  runnable — you can always buy the leg you came for.
+- **Every other product is randomized per VISIT, not per game.** Arrive in Buckhead
+  and it might also have Oxy and Shrooms; come back later and it might have only
+  Acid. `SPEC.md` §2 currently says "randomized at game start" — that becomes
+  per-visit.
+- **This makes "availability is hidden until you arrive" meaningful every time**,
+  not once at game start. Arrival stays an event.
+- What the player memorises is **who pays for what and who is cheap** — the ring.
+  What stays uncertain is **what's on the shelf right now**.
+
+**Consequence — this forces the sell rule.** Per-visit randomization breaks the ring
+unless one of these holds:
+
+- **(A) Sell anything anywhere** — the shop shows the hood's stock for buying, plus
+  your bag as sellable. *Recommended.* Without it, arriving somewhere that happens
+  not to stock your goods leaves inventory you cannot liquidate: dead money, and a
+  potentially stalled run. Also the original's rule.
+- **(B) Guarantee each hood also stocks its premium product** — randomize only the
+  remaining slots. No shop change, but dead inventory stays possible.
+
+**Implementation note:** availability must be computed **per arrival** rather than
+read from the `Location.products` const, and must **not** be persisted in the save —
+it isn't state the player owns. That also keeps it out of Classic's save format.
+
+---
+
+## D9 — Heat surfacing: state, not a number (PROPOSED)
+
+Heat is **mechanically** a number. The open question is what the player sees.
+
+**Recommendation: no meter, no number — show a state.**
+
+- A 0-100 bar invites min-maxing the police instead of playing the street, and it
+  adds a HUD element competing with the legibility pass that just made everything
+  bigger.
+- **Classic keeps heat invisible**, preserving the original's "random cops" feel.
+  The player should suspect, not audit.
+- **Progressive may show a bare state word** (Cool / Warm / Hot), or nothing, with
+  the signal arriving diegetically — cops get more frequent and the world reacts.
+- Cost is identical either way: the number exists internally, the UI simply doesn't
+  print it.
+
+---
+
 ## Open — needs a decision before spec
 
-1. **Sell-anywhere vs. align stock lists** (D2 rule 1). Sell-anywhere is recommended;
-   it's the original's rule and it decouples the table from randomized availability.
-2. **Heat's decay shape** — automatic per day, or only when you lay low in one place?
-   Decides whether heat is a meter to manage or a slope to ride.
-3. **Threshold values** for the informant's cash marks, per difficulty.
-4. **Does the day counter stay visible in Progressive?** Recommendation: yes, keep
-   "Day N" for flavour, drop only the deadline.
+1. **The sell rule (D8):** (A) sell-anywhere, or (B) guarantee the premium is also
+   stocked? Recommended: **(A)**.
+2. **Heat surfacing (D9):** invisible in Classic, bare state word in Progressive —
+   agree?
+
+Settled in this session: D1–D8. Ring assignments approved as proposed. Threshold
+values approved (cash threshold + story beat, D4). Heat decay requires laying low —
+not the passage of time (D5).

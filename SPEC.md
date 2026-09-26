@@ -27,9 +27,16 @@
 | **Decatur** | — |
 | **West End** | 🔫 Weapon shop |
 
-Each location has 3–5 products available, randomized at game start (not all products at all locations).
+Each location **always stocks its cheap-source product** — see the ring in
+`docs/DESIGN_DECISIONS.md` D2 — so a profitable leg is always buyable. The remaining
+product slots are **randomized per visit, not per game**.
 
-Product availability is **hidden** until the player arrives at that location.
+Product availability is **hidden** until the player arrives at that location — and
+because it re-rolls on every visit, arrival stays an event rather than a known
+constant.
+
+Selling is not restricted to what a hood stocks: the shop shows its stock for buying
+plus your bag as sellable. *(Pending D8 confirmation — recommended option (A).)*
 
 ---
 
@@ -47,7 +54,7 @@ Product availability is **hidden** until the player arrives at that location.
 
 **Prices are location-dependent. Profit requires travel.**
 
-- **Hood multiplier** — each hood has a cheap source (−30% buy) and a premium market (+50% sell). Full table: `docs/DESIGN_DECISIONS.md` D2 (**PROPOSED — awaiting approval**).
+- **Hood multiplier** — each hood has a cheap source (−30% buy) and a premium market (+50% sell). Full table: `docs/DESIGN_DECISIONS.md` D2 (**settled — ring approved**).
 - **Same-hood margin stays slightly negative** — sell ≈ 85–90% of buy, so a round trip in one place always loses a little. Without this a player buys and sells in one spot forever; bag capacity slows it, it does not stop it.
 - **Normal day**: price = base × hoodMultiplier × random(0.85 to 1.15)
 - **Demand spike** (~8% chance on arrival — **shipped rate**; this doc previously said 15%): one product pushed toward **max** — popup: *"Demand is through the roof! Prices are sky high!"*
@@ -205,10 +212,10 @@ modes — it must not be Progressive-only, or Classic loses a system it already 
   Slight and gradual, not a spike.
 - **Modulates the §8 encounter rates** — MARTA 3%, Ryde 3%, Drive 6%, Water Boys 8%,
   YNs 10%.
-- **Falls by laying low in one place** — a new verb for the game.
+- **Falls by laying low in one place** — a new verb, and the only decay path: it is a choice, not a timer.
 - **The Councilman's 2% / 1% bonus stays** as the floor once debt is cleared.
 - Makes luck legible: the player can influence the odds rather than only suffer them.
-- Decay shape is an **open question** — see `docs/DESIGN_DECISIONS.md`.
+- Decay is settled: laying low is the **only** path down — not a daily timer.
 
 ---
 

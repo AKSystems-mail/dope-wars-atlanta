@@ -43,6 +43,20 @@ class PixelHud extends StatelessWidget {
           ),
           const SizedBox(width: 12),
 
+          // Heat, Progressive only, and as a state word rather than a number
+          // (D9). Classic never shows it — the player should suspect, not audit.
+          if (state.isProgressive) ...[
+            _HudItem(
+              label: 'HEAT ${state.heatLabel.toUpperCase()}',
+              color: state.heatLabel == 'Hot'
+                  ? AppTheme.danger
+                  : (state.heatLabel == 'Warm'
+                      ? AppTheme.gold
+                      : AppTheme.textSecondary),
+            ),
+            const SizedBox(width: 12),
+          ],
+
           // Time
           _HudItem(
             label: timeLabel,

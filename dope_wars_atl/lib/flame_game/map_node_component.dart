@@ -14,12 +14,18 @@ class MapNodeComponent extends Component {
   final bool isCurrent;
   final VoidCallback onTap;
 
+  /// Progressive: a hood the player has not earned yet. Drawn as unknown
+  /// territory rather than as a market, so the map reads as a map and not as a
+  /// menu.
+  final bool isLocked;
+
   double _time = 0;
 
   MapNodeComponent({
     required this.location,
     required this.isCurrent,
     required this.onTap,
+    this.isLocked = false,
   });
 
   @override
@@ -42,13 +48,17 @@ class MapNodeComponent extends Component {
     final pos = locationCoords[location.id];
     if (pos == null) return;
 
-    final accent = locationAccents[location.id] ?? Colors.white;
+    // Locked hoods read as unknown territory: muted, no glow, and a question
+    // mark where the product dot would be.
+    final accent = isLocked
+        ? Colors.grey.withAlpha(140)
+        : (locationAccents[location.id] ?? Colors.white);
     const double circleRadius = 24.0;
     final radius = isCurrent ? circleRadius * 1.3 : circleRadius;
     final pulseValue = (sin(_time * 2) + 1) / 2; // 0..1 oscillator
 
     // Outer glow (current location)
-    if (isCurrent) {
+    if (isCurrent && !isLocked) {
       final glowPaint = Paint()
         ..color = accent.withAlpha(64)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18);
@@ -68,8 +78,23 @@ class MapNodeComponent extends Component {
       ..strokeWidth = 4;
     canvas.drawCircle(pos, radius, strokePaint);
 
-    // Inner dot
-    canvas.drawCircle(pos, 4, Paint()..color = accent);
+    // Inner dot, or a question mark while the hood is still only a rumour.
+    if (isLocked) {
+      final tp = TextPainter(
+        text: TextSpan(
+          text: '?',
+          style: TextStyle(
+            color: accent,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(pos.dx - tp.width / 2, pos.dy - tp.height / 2));
+    } else {
+      canvas.drawCircle(pos, 4, Paint()..color = accent);
+    }
 
     // Pulsing ring (current location)
     if (isCurrent) {

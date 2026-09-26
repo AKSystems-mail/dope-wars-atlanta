@@ -21,6 +21,29 @@ class GameState {
   String difficulty; // 'easy', 'normal', 'hard'
   bool soundEnabled;
 
+  /// 'classic' — every hood open, race the calendar for net worth.
+  /// 'progressive' — the city unlocks as you earn it, and owning it is the win.
+  /// A configuration of this same state, not a second engine.
+  /// See docs/PROGRESSIVE_SPEC.md.
+  String mode;
+
+  /// Hoods open for travel. Ignored in Classic, where all six always are.
+  Set<String> unlockedHoods;
+
+  /// Internal 0-100. Never rendered as a number: Classic hides it entirely,
+  /// Progressive shows only a state word (docs/DESIGN_DECISIONS.md D9).
+  int heat;
+
+  /// Items found rather than bought. The MARTA card is the first instance of a
+  /// general mechanism (`SPEC.md` §6), so this is a map, not a flag.
+  Map<String, bool> items;
+
+  /// The informant, Progressive's gate. Armed by a cash threshold; once armed
+  /// he turns up on a roll bounded by [informantSightingsBound] so an unlucky
+  /// run cannot lose to a coin flip (D13).
+  bool informantArmed;
+  int informantArrivals;
+
   /// The market for wherever we are right now. Resolved once per arrival and
   /// held until the next one — see [ensureMarket] and lib/models/market.dart.
   Market? market;
@@ -28,6 +51,22 @@ class GameState {
   /// Hoods whose reputation the player has learned. Classic fills this by
   /// visiting; Progressive fills it when the informant tells them.
   Set<String> knownHoods;
+
+  /// Progressive's unlock sequence, walking the ring: each new hood extends an
+  /// arc the player can already run (docs/PROGRESSIVE_SPEC.md §3).
+  static const List<String> unlockOrder = ['little_five', 'midtown', 'west_end', 'cobb'];
+
+  /// Where Progressive starts. Buckhead is the cheap blunts source and Decatur
+  /// pays for blunts, so the opening trip is the first leg of the ring.
+  static const List<String> startingHoods = ['buckhead', 'decatur'];
+
+  static const String martaCard = 'marta_card';
+  static const int heatMax = 100;
+  static const int heatPerTrip = 1;
+  static const int heatPostWinPerTrip = 3;
+  static const int layLowHeatDrop = 10;
+  static const int informantSightingsBound = 3;
+  static const int informantAppearPercent = 45;
 
   /// Display name for the difficulty setting
   /// 'easy' → 'Mount Paran', 'normal' → 'East Atlanta', 'hard' → 'Hapeville'
@@ -39,6 +78,28 @@ class GameState {
         return 'Hapeville';
       default:
         return 'East Atlanta';
+    }
+  }
+
+  static int startingCashFor(String difficulty) {
+    switch (difficulty) {
+      case 'easy':
+        return 6000;
+      case 'hard':
+        return 2000;
+      default:
+        return 4000;
+    }
+  }
+
+  static int startingDebtFor(String difficulty) {
+    switch (difficulty) {
+      case 'easy':
+        return 5000;
+      case 'hard':
+        return 15000;
+      default:
+        return 10000;
     }
   }
 
@@ -59,32 +120,27 @@ class GameState {
     this.totalDaysPassed = 0,
     this.difficulty = 'normal',
     this.soundEnabled = true,
+    this.mode = 'classic',
+    Set<String>? unlockedHoods,
+    this.heat = 0,
+    Map<String, bool>? items,
+    this.informantArmed = false,
+    this.informantArrivals = 0,
     this.market,
     Set<String>? knownHoods,
   })  : inventory = inventory ?? {},
         weaponSlots = weaponSlots ?? [WeaponSlot.fists()],
+        unlockedHoods = unlockedHoods ??
+            (mode == 'progressive' ? startingHoods.toSet() : <String>{}),
+        items = items ?? {},
         knownHoods = knownHoods ?? <String>{};
 
-  factory GameState.fromDifficulty(String difficulty) {
-    int cash, debt;
-    switch (difficulty) {
-      case 'easy':
-        cash = 6000;
-        debt = 5000;
-        break;
-      case 'hard':
-        cash = 2000;
-        debt = 15000;
-        break;
-      default:
-        cash = 4000;
-        debt = 10000;
-        break;
-    }
+  factory GameState.fromDifficulty(String difficulty, {String mode = 'classic'}) {
     return GameState(
-      cash: cash,
-      debt: debt,
+      cash: startingCashFor(difficulty),
+      debt: startingDebtFor(difficulty),
       difficulty: difficulty,
+      mode: mode,
     );
   }
 
@@ -98,6 +154,72 @@ class GameState {
   bool get canCarryMore => inventoryCount < bagCapacity;
 
   int get remainingSpace => bagCapacity - inventoryCount;
+
+  // ---- MODE ----
+
+  bool get isProgressive => mode == 'progressive';
+
+  bool isUnlocked(String hoodId) =>
+      !isProgressive || unlockedHoods.contains(hoodId);
+
+  bool get hasMartaCard => items[martaCard] ?? false;
+
+  /// The next hood the informant will open, or null when the city is yours.
+  String? get nextUnlockHood {
+    for (final id in unlockOrder) {
+      if (!unlockedHoods.contains(id)) return id;
+    }
+    return null;
+  }
+
+  int get unlocksDone => unlockOrder.where(unlockedHoods.contains).length;
+
+  /// Progressive's win: every hood open and the Councilman square.
+  bool get ownsTheCity => isProgressive && nextUnlockHood == null && debt <= 0;
+
+  /// The cash mark that arms the informant. Scales with progress so the ask
+  /// keeps pace. These are tuning numbers, not design (D13).
+  int get informantThreshold =>
+      (startingCashFor(difficulty) * 1.5 * (unlocksDone + 1)).round();
+
+  /// A run can only be bailed out while it is still being played for something.
+  /// Post-win Progressive has no safety net (D18).
+  bool get bailoutAvailable => !(isProgressive && won);
+
+  // ---- HEAT ----
+
+  /// Encounter odds scale with this: 1.0 at zero heat, 2.0 at boiling.
+  double get heatFactor {
+    final factor = 1.0 + heat / heatMax;
+    // Twice the odds at boiling is plenty, and the clamp means a future tuning
+    // change to accrual cannot quietly turn every trip into an encounter.
+    return factor > 2.0 ? 2.0 : factor;
+  }
+
+  String get heatLabel {
+    if (heat < 30) return 'Cool';
+    if (heat < 70) return 'Warm';
+    return 'Hot';
+  }
+
+  void raiseHeat(int amount) {
+    if (amount <= 0) return;
+    heat = (heat + amount).clamp(0, heatMax);
+  }
+
+  /// Lay low for a day: the **only** way heat comes down (D5). Time passes,
+  /// which is what gives patience a price in a capped run. Post-win there is no
+  /// cooling at all — the squeeze only tightens.
+  void layLow() {
+    if (!won) {
+      heat = (heat - layLowHeatDrop).clamp(0, heatMax);
+    }
+    final dayBefore = day;
+    // Same step as travel, so a lay-low day costs the same as a travel day.
+    advanceTime(2);
+    if (day == dayBefore) advanceDay();
+    applyDailyInterest();
+  }
 
   // ---- MARKET ----
 
@@ -322,25 +444,43 @@ class GameState {
   }
 
   /// Check and update game over/win state. Returns a message if game is over.
+  ///
+  /// Classic: win means surviving the cap with the debt cleared. Progressive:
+  /// owning the city is the win, and it does **not** end the run — the overlay
+  /// celebrates it, dismissing it puts you back in the same game, and from then
+  /// on there is no cooling and no bailout until you are out of product or
+  /// money (D12, D16, D18).
   String? checkGameOver() {
-    if (won || gameOver) return null;
+    if (gameOver) return null;
 
-    // Win: survived all days and debt is paid off
+    if (isProgressive && !won && ownsTheCity) {
+      won = true;
+      gameOver = true;
+      return 'YOU OWN THE CITY\n'
+          'Every hood is open and the Councilman is square.\n'
+          'Nothing left to prove here — but the heat is still rising.';
+    }
+
+    // Empty pockets and an empty bag ends any run.
+    if (cash <= 0 && inventoryCount <= 0) {
+      gameOver = true;
+      return isProgressive
+          ? 'GAME OVER\nEmpty pockets and an empty bag.\nOut here that is the end of the road.'
+          : 'GAME OVER\nYou\'re broke with nothing to sell.\nThe Councilman might help... for a price.';
+    }
+
     if (day > maxDays) {
+      if (isProgressive) {
+        gameOver = true;
+        return 'TIME UP\nThe city is not yours yet.\nBut you are still standing.';
+      }
       if (debt <= 0) {
         won = true;
         gameOver = true;
         return 'YOU WIN!\nSurvived $totalDaysPassed days.\nNet worth: \$${netWorth}';
-      } else {
-        gameOver = true;
-        return 'GAME OVER\nYou ran out of time with debt remaining.';
       }
-    }
-
-    // Cash = 0 and inventory = 0 → game over (bailout available)
-    if (cash <= 0 && inventoryCount <= 0) {
       gameOver = true;
-      return 'GAME OVER\nYou\'re broke with nothing to sell.\nThe Councilman might help... for a price.';
+      return 'GAME OVER\nYou ran out of time with debt remaining.';
     }
 
     return null;
@@ -463,6 +603,12 @@ class GameState {
         'difficulty': difficulty,
         'soundEnabled': soundEnabled,
         'gameHour': gameHour,
+        'mode': mode,
+        'unlockedHoods': unlockedHoods.toList(),
+        'heat': heat,
+        'items': items,
+        'informantArmed': informantArmed,
+        'informantArrivals': informantArrivals,
         'market': market?.toJson(),
         'knownHoods': knownHoods.toList(),
       };
@@ -495,6 +641,18 @@ class GameState {
         difficulty: json['difficulty'] as String? ?? 'normal',
         soundEnabled: json['soundEnabled'] as bool? ?? true,
         gameHour: json['gameHour'] as int? ?? 8,
+        // Everything below is absent on a save written before Progressive
+        // existed. The defaults put such a save in Classic with every hood
+        // open, which is exactly what it was.
+        mode: json['mode'] as String? ?? 'classic',
+        unlockedHoods: json['unlockedHoods'] == null
+            ? null
+            : (json['unlockedHoods'] as List).cast<String>().toSet(),
+        heat: json['heat'] as int? ?? 0,
+        items: (json['items'] as Map<String, dynamic>?)
+            ?.map((k, v) => MapEntry(k, v as bool)),
+        informantArmed: json['informantArmed'] as bool? ?? false,
+        informantArrivals: json['informantArrivals'] as int? ?? 0,
         // Absent on any save written before the pricing rework; ensureMarket
         // resolves one on first use rather than a migration.
         market: json['market'] == null

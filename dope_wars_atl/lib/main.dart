@@ -138,7 +138,21 @@ class _GameRootState extends State<_GameRoot> {
   Widget build(BuildContext context) {
     if (_showBoot) {
       return BootScreen(
-        onComplete: () => setState(() => _showBoot = false),
+        hasSave: widget.game.hasSave,
+        onStart: (mode) async {
+          // null means continue the save already loaded; a mode means start
+          // fresh in it.
+          if (mode != null) {
+            final difficulty = widget.game.state?.difficulty ?? 'normal';
+            final duration = widget.game.state?.maxDays ?? 30;
+            await widget.game.newGame(
+              difficulty: difficulty,
+              gameDuration: duration,
+              mode: mode,
+            );
+          }
+          if (mounted) setState(() => _showBoot = false);
+        },
       );
     }
 
@@ -215,8 +229,14 @@ class _GameOverOverlayState extends State<_GameOverOverlay>
   @override
   Widget build(BuildContext context) {
     final message = widget.game.gameOverMessage;
-    final isWin = message.contains('🏆');
     final state = widget.game.state;
+    // `won` is the reliable signal: true for the Classic win and for the
+    // Progressive one, false for every loss. Matching on the trophy emoji meant
+    // a Progressive win would have rendered as GAME OVER.
+    final isWin = state?.won ?? false;
+    // Progressive's win does not end the run, so this overlay dismisses back
+    // into the same game rather than offering a restart (D16).
+    final keepPlaying = isWin && (state?.isProgressive ?? false);
 
     return FadeTransition(
       opacity: _fadeAnim,
@@ -229,7 +249,9 @@ class _GameOverOverlayState extends State<_GameOverOverlay>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  isWin ? 'YOU WIN!' : 'GAME OVER',
+                  keepPlaying
+                      ? 'CITY IS YOURS'
+                      : (isWin ? 'YOU WIN!' : 'GAME OVER'),
                   style: AppTheme.jersey15(size: 36,
                     color: isWin ? AppTheme.accentGreen : AppTheme.danger,
                   ),
@@ -270,7 +292,9 @@ class _GameOverOverlayState extends State<_GameOverOverlay>
                   child: ElevatedButton(
                     onPressed: () {
                       widget.game.dismissGameOver();
-                      widget.game.newGame();
+                      // Progressive's win continues the same run: no restart,
+                      // and from here nothing cools the heat (D16, D18).
+                      if (!keepPlaying) widget.game.newGame();
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.accentGreen,
@@ -278,12 +302,12 @@ class _GameOverOverlayState extends State<_GameOverOverlay>
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     child: Text(
-                      'NEW GAME',
+                      keepPlaying ? 'KEEP GOING' : 'NEW GAME',
                       style: AppTheme.jersey10(size: 12),
                     ),
                   ),
                 ),
-                if (!isWin && state != null && state.cash <= 0) ...[
+                if (!isWin && state != null && state.cash <= 0 && state.bailoutAvailable) ...[
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,

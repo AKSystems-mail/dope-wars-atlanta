@@ -22,9 +22,14 @@ class DopeWarsGame extends FlameGame {
   final GameService gameService;
   final String currentLocationId;
 
+  /// Hoods to render as unknown territory. Empty in Classic, where the whole
+  /// city is open from turn one.
+  final Set<String> lockedHoodIds;
+
   DopeWarsGame({
     required this.gameService,
     required this.currentLocationId,
+    this.lockedHoodIds = const {},
   });
 
   @override
@@ -56,6 +61,7 @@ class DopeWarsGame extends FlameGame {
       add(MapNodeComponent(
         location: loc,
         isCurrent: loc.id == currentLocationId,
+        isLocked: lockedHoodIds.contains(loc.id),
         onTap: () {}, // handled by parent widget
       ));
     }

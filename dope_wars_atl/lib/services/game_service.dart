@@ -45,6 +45,12 @@ class GameService extends ChangeNotifier {
   /// The shelf here: what can be bought or sold this visit. You can only trade
   /// what a hood stocks — see docs/DESIGN_DECISIONS.md D8.
   List<Product> get marketProducts => market?.shelfProducts ?? const [];
+
+  bool get isProgressive => _state?.isProgressive ?? false;
+
+  /// The heat state word, Progressive only. Classic never shows it (D9): the
+  /// player is meant to suspect, not audit.
+  String? get heatStateLabel => isProgressive ? _state?.heatLabel : null;
   String get gameOverMessage => _gameOverMessage;
   bool get showGameOver => _showGameOver;
 
@@ -74,8 +80,17 @@ class GameService extends ChangeNotifier {
     }
   }
 
-  Future<void> newGame({String difficulty = 'normal', int gameDuration = 30}) async {
-    _state = GameState.fromDifficulty(difficulty);
+  Future<void> newGame({
+    String difficulty = 'normal',
+    int gameDuration = 30,
+    String? mode,
+  }) async {
+    // Default to the mode already in play, so NEW GAME restarts the kind of run
+    // the player was having instead of silently dropping them into Classic.
+    _state = GameState.fromDifficulty(
+      difficulty,
+      mode: mode ?? _state?.mode ?? 'classic',
+    );
     _state!.maxDays = gameDuration;
     await _saveService.delete();
     _showGameOver = false;
@@ -100,6 +115,16 @@ class GameService extends ChangeNotifier {
   // ---- LOCATION / TRAVEL ----
 
   bool canTravelTo(String locationId, {required bool isMarta}) {
+    // Progressive: the city is only as big as the player has earned. Every
+    // caller routes through here, so one guard covers the map, the travel
+    // sheet, and the trip itself.
+    if (!(_state?.isUnlocked(locationId) ?? true)) return false;
+    // Progressive also opens road-only: MARTA needs the card, which is found
+    // after the first sale rather than bought (D20). Classic keeps the trains
+    // from the start.
+    if (isMarta && (_state?.isProgressive ?? false) && !_state!.hasMartaCard) {
+      return false;
+    }
     final loc = currentLocation;
     if (isMarta) {
       return loc.martaConnections.contains(locationId);
@@ -140,10 +165,10 @@ class GameService extends ChangeNotifier {
     // Play MARTA chime
     if (_state!.soundEnabled) sound.playMartaChime();
 
-    // Arrival: resolve this visit's shelf and prices, and learn the hood. Done
-    // before the encounter checks so an early return cannot leave the previous
-    // hood's market in place.
-    _state!.ensureMarket();
+    // Arrival: market, hood knowledge, heat, and the informant — all in one
+    // place, and before the encounter checks so an early return cannot leave
+    // the previous hood's market in place.
+    _onArrival();
 
     _encounterText = '';
     _encounterChoices = null;
@@ -163,6 +188,9 @@ class GameService extends ChangeNotifier {
       await autoSave();
       return true;
     }
+
+    // The informant gets his roll only if nothing else happened on this trip.
+    _maybeInformant();
 
     // Check game over
     _checkGameOver();
@@ -194,8 +222,8 @@ class GameService extends ChangeNotifier {
     // Play car horn for Ryde
     if (_state!.soundEnabled) sound.playCarHorn();
 
-    // Arrival: resolve this visit's shelf and prices (see travelByMarta).
-    _state!.ensureMarket();
+    // Arrival: market, hood knowledge, heat, and the informant (see travelByMarta).
+    _onArrival();
 
     _encounterText = '';
     _encounterChoices = null;
@@ -224,6 +252,8 @@ class GameService extends ChangeNotifier {
       return true;
     }
 
+    // The informant gets his roll only if nothing else happened on this trip.
+    _maybeInformant();
     _checkGameOver();
 
     notifyListeners();
@@ -248,8 +278,8 @@ class GameService extends ChangeNotifier {
     // Play car horn for Drive
     if (_state!.soundEnabled) sound.playCarHorn();
 
-    // Arrival: resolve this visit's shelf and prices (see travelByMarta).
-    _state!.ensureMarket();
+    // Arrival: market, hood knowledge, heat, and the informant (see travelByMarta).
+    _onArrival();
 
     _encounterText = '';
     _encounterChoices = null;
@@ -278,6 +308,8 @@ class GameService extends ChangeNotifier {
       return true;
     }
 
+    // The informant gets his roll only if nothing else happened on this trip.
+    _maybeInformant();
     _checkGameOver();
 
     notifyListeners();
@@ -285,22 +317,130 @@ class GameService extends ChangeNotifier {
     return false;
   }
 
+  // ---- ARRIVAL ----
+
+  /// Everything that happens when you arrive somewhere: resolve the market,
+  /// learn the hood, and raise heat. The informant gets his roll later, after
+  /// the encounter checks, so a cop cannot overwrite his offer.
+  void _onArrival() {
+    final s = _state;
+    if (s == null) return;
+    s.ensureMarket();
+    // Heat rises a little with every move; after the Progressive win it climbs
+    // faster, because from then on nothing brings it back down (D16).
+    s.raiseHeat(s.won ? GameState.heatPostWinPerTrip : GameState.heatPerTrip);
+  }
+
+  /// Encounter odds scale with heat, in both modes (D5). One helper, so the five
+  /// checks cannot drift apart from each other.
+  bool _roll(int basePercent) {
+    final scaled =
+        (basePercent * (_state?.heatFactor ?? 1.0)).round().clamp(1, 100);
+    return Random().nextInt(100) < scaled;
+  }
+
+  /// Progressive's gate, and its only story delivery.
+  ///
+  /// Armed by a cash threshold, then met on a roll — except the roll is bounded
+  /// to [GameState.informantSightingsBound] arrivals, because a pure coin flip
+  /// has a tail that loses runs for reasons the player cannot observe (D13).
+  void _maybeInformant() {
+    final s = _state;
+    if (s == null || !s.isProgressive) return;
+
+    final next = s.nextUnlockHood;
+    if (next == null) return; // the city is already yours
+
+    if (!s.informantArmed) {
+      if (s.cash >= s.informantThreshold) s.informantArmed = true;
+      return; // he starts turning up from the next arrival
+    }
+
+    if (s.currentLocationId == 'cobb') return; // never in Cobb
+
+    s.informantArrivals++;
+    final due = s.informantArrivals >= GameState.informantSightingsBound;
+    if (!due && Random().nextInt(100) >= GameState.informantAppearPercent) {
+      return;
+    }
+
+    final feeId = _informantFeeProduct(s);
+    if (feeId == null) return;
+    final feeQty = 1 + Random().nextInt(5);
+    final product = Product.defaults.firstWhere((p) => p.id == feeId);
+    final canPay = (s.inventory[feeId] ?? 0) >= feeQty;
+
+    _setEncounterWithChoices(
+      'A figure steps out of a doorway, hands in pockets.\n\n'
+      '“$next. I can get you in.” He looks at your bag.\n'
+      '“$feeQty ${product.name}. That is the toll.”',
+      [
+        if (canPay)
+          EncounterChoice(
+            label: 'PAY — ${feeQty}x ${product.name}',
+            color: AppTheme.accentGreen,
+            onTap: () {
+              s.removeFromInventory(feeId, feeQty);
+              s.unlockedHoods.add(next);
+              // Learning where a hood is IS learning what it trades (D14).
+              s.knownHoods.add(next);
+              s.informantArmed = false;
+              s.informantArrivals = 0;
+              clearEncounter();
+            },
+          ),
+        EncounterChoice(
+          label: canPay ? 'NOT NOW' : 'NOT CARRYING IT',
+          color: AppTheme.textSecondary,
+          onTap: () {
+            // Refusing delays rather than loses: he keeps turning up (D13).
+            s.informantArrivals = 0;
+            clearEncounter();
+          },
+        ),
+      ],
+    );
+  }
+
+  /// He never takes the hood's own cheap product; otherwise anything, 1-5 units.
+  /// A category rule rather than a named item, so the toll is always payable out
+  /// of the bag and the cost stays in goods rather than in days (D17).
+  String? _informantFeeProduct(GameState s) {
+    final localCheap = s.currentLocation.cheapProductId;
+    final options = Product.defaults.where((p) => p.id != localCheap).toList();
+    if (options.isEmpty) return null;
+    // Prefer something they are actually carrying, or the toll reads as a tease.
+    final held = options.where((p) => (s.inventory[p.id] ?? 0) > 0).toList();
+    final pool = held.isNotEmpty ? held : options;
+    return pool[Random().nextInt(pool.length)].id;
+  }
+
+  /// Spend a day lying low. The only way heat comes down, which is what makes
+  /// patience cost something in a capped run (D5).
+  Future<void> layLow() async {
+    if (_state == null) return;
+    _state!.layLow();
+    _checkGameOver();
+    notifyListeners();
+    await autoSave();
+  }
+
   // ---- TRAVEL: CHECK ENCOUNTERS ----
 
   bool _checkMartaEncounter() {
-    if (Random().nextInt(100) >= 3) return false; // 3% chance
+    if (!_roll(3)) return false; // 3% base, scaled by heat
     _setPoliceEncounter('MARTA POLICE');
     return true;
   }
 
   bool _checkRydeEncounter() {
-    if (Random().nextInt(100) >= 3) return false; // 3% chance
+    if (!_roll(3)) return false; // 3% base, scaled by heat
     _setCopEncounter();
     return true;
   }
 
   bool _checkDriveEncounter() {
-    if (Random().nextInt(100) >= 6) return false; // 6% chance
+    if (!_roll(6)) return false; // 6% base, scaled by heat
     // GSP chase
     if (Random().nextInt(100) < 75) {
       // Caught — arrested
@@ -321,7 +461,7 @@ class GameService extends ChangeNotifier {
   }
 
   bool _checkWaterBoys() {
-    if (Random().nextInt(100) >= 8) return false; // 8% chance heading to Midtown
+    if (!_roll(8)) return false; // 8% base heading to Midtown, scaled by heat
     if (_state!.inventoryCount <= 0) return false; // Nothing to take
 
     final lost = (_state!.inventoryCount * 0.3).round().clamp(1, _state!.inventoryCount);
@@ -337,7 +477,7 @@ class GameService extends ChangeNotifier {
   }
 
   bool _checkYns() {
-    if (Random().nextInt(100) >= 10) return false; // 10% chance heading to West End
+    if (!_roll(10)) return false; // 10% base heading to West End, scaled by heat
     // Weapon check
     if (_state!.equippedWeapon.id != 'fists') {
       _setEncounterBlock(
@@ -615,6 +755,19 @@ class GameService extends ChangeNotifier {
     if (price <= 0) return false;
     _state!.cash += price * qty;
     _state!.removeFromInventory(productId, qty);
+    // Selling is what gets you noticed: heat scales with volume moved.
+    _state!.raiseHeat(1 + qty ~/ 25);
+    // Progressive opens road-only, and the card is found rather than bought:
+    // the first sale is where it turns up. First instance of the general
+    // dropped-item mechanism, so it goes through the items map (D20).
+    if (_state!.isProgressive && !_state!.hasMartaCard) {
+      _state!.items[GameState.martaCard] = true;
+      _setEncounterBlock(
+        '💳 MARTA CARD\n\n'
+        'A Breeze card, still warm, on the pavement where your buyer stood.\n\n'
+        'The trains are open to you now — five dollars a ride.',
+      );
+    }
     if (_state!.soundEnabled) sound.playCashRegister();
     notifyListeners();
     await autoSave();

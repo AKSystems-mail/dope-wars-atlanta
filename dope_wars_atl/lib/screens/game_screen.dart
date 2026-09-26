@@ -132,6 +132,34 @@ class GameScreen extends StatelessWidget {
                           color: AppTheme.littleFive,
                           onTap: () => _showBookbagShop(context, game),
                         ),
+                      // Lay low. Heat only comes down by choosing to sit still,
+                      // so the mechanic needs a verb in the UI or it does not
+                      // exist for the player (docs/DESIGN_DECISIONS.md trap 7).
+                      if (state.isProgressive)
+                        _SpecialFeatureCard(
+                          emoji: '🕶️',
+                          title: 'Lay Low',
+                          subtitle: state.heat <= 0
+                              ? 'Nothing to cool off right now'
+                              : 'Burn a day · heat is ${state.heatLabel.toUpperCase()}',
+                          color: AppTheme.textSecondary,
+                          onTap: () async {
+                            final before = state.heatLabel;
+                            if (state.heat <= 0) return;
+                            await game.layLow();
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Kept your head down. Heat $before → ${state.heatLabel}.',
+                                    style: AppTheme.jersey15(
+                                        size: 14, color: AppTheme.background)),
+                                backgroundColor: AppTheme.accentGreen,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                        ),
                     ],
                   ),
                 ),

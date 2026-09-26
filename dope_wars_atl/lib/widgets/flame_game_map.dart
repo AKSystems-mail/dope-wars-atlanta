@@ -40,6 +40,17 @@ class _FlameGameMapState extends State<FlameGameMap> {
   final TransformationController _transformCtrl = TransformationController();
   late DopeWarsGame _flameGame;
 
+  /// Hoods the player has not earned yet — Progressive only. Classic returns an
+  /// empty set, so its map is unchanged.
+  Set<String> get _lockedHoodIds {
+    final state = widget.game.state;
+    if (state == null || !state.isProgressive) return const <String>{};
+    return Location.defaults
+        .map((l) => l.id)
+        .where((id) => !state.isUnlocked(id))
+        .toSet();
+  }
+
   /// The actual viewport the map is painted into — the Scaffold body, which is
   /// NOT MediaQuery.size (that includes the app bar, so centring against it
   /// threw the map ~half an app bar off and left dead space up top).
@@ -51,6 +62,7 @@ class _FlameGameMapState extends State<FlameGameMap> {
     _flameGame = DopeWarsGame(
       gameService: widget.game,
       currentLocationId: widget.currentLocationId,
+      lockedHoodIds: _lockedHoodIds,
     );
     // Runs after the first build, so _viewport is already measured.
     WidgetsBinding.instance.addPostFrameCallback((_) {

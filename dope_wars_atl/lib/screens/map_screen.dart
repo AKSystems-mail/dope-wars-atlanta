@@ -62,6 +62,13 @@ class MapScreen extends StatelessWidget {
       return;
     }
 
+    // A hood they have not earned yet: say that, rather than the misleading
+    // "no route" message the reachability check would give.
+    if (!state.isUnlocked(locationId)) {
+      _showLocationInfo(context, game, locationId);
+      return;
+    }
+
     final currentLoc = Location.getById(state.currentLocationId);
     final destLoc = Location.getById(locationId);
     final isConnected =
@@ -88,11 +95,15 @@ class MapScreen extends StatelessWidget {
             Text(loc.name,
                 style: AppTheme.jersey15(size: 22, color: loc.accentColor)),
             const SizedBox(height: 4),
-            Text(loc.description,
+            Text(
+                (game.state?.isUnlocked(loc.id) ?? true)
+                    ? loc.description
+                    : 'Nobody will tell you what goes on here yet.',
                 style: AppTheme.jersey15(size: 13, color: AppTheme.textSecondary),
                 textAlign: TextAlign.center),
             // Reputation, once the player has learned it — D11/D14.
-            if (game.state?.knowsHood(loc.id) ?? false) ...[
+            if ((game.state?.isUnlocked(loc.id) ?? true) &&
+                (game.state?.knowsHood(loc.id) ?? false)) ...[
               const SizedBox(height: 8),
               Text(loc.reputationLine,
                   style: AppTheme.jersey10(size: 10, color: AppTheme.accentGreen),
@@ -141,7 +152,9 @@ class MapScreen extends StatelessWidget {
     final hasRyde = state.cash >= rydeCost;
     final hasDrive = state.cash >= driveCost;
     final hasMarta = currentLoc.martaConnections.contains(dest.id) &&
-        state.cash >= 5;
+        state.cash >= 5 &&
+        // Progressive opens road-only until the card turns up (D20).
+        (!state.isProgressive || state.hasMartaCard);
 
     showModalBottomSheet(
       context: context,

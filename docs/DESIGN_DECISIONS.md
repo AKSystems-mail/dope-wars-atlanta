@@ -219,15 +219,50 @@ Heat is **mechanically** a number. The open question is what the player sees.
 
 ---
 
+## D10 — When a hood's premium actually fires (PROPOSED)
+
+"When does West End's oxy premium show up?" is really two questions, because two
+different things are called "the premium":
+
+- **The preference is permanent.** West End pays +50% for oxy on **every** visit. It's
+  the hood's identity and it never moves or rotates.
+- **The stock is per visit.** With only the cheap source guaranteed, oxy appears at
+  West End solely on visits whose random roll includes it — roughly **half to
+  three-quarters** of visits under a "guaranteed + 2–3 random" draw.
+
+So the premium is live every single time; there's just nothing to sell into unless the
+shelf has it. A trip that finds no oxy costs fare, a day, and leaves you carrying.
+
+**Recommended dial: weight the premium's appearance above random but below
+guaranteed — target ~2 visits in 3.** Keeps it a hunt, removes the slot-machine feel
+of a trip that was simply wasted. It's one number in one place.
+
+**It also has to be learnable.** An invisible ring makes the design read as noise
+rather than depth, so surface the stable facts and hide only the volatile one:
+
+- **Public:** what a hood is known for (its cheap source) and what it pays for (its
+  premium) — shown on the location card the game already has (`location_card.dart`).
+- **Hidden:** what's on the shelf this visit — `SPEC.md` §2, unchanged.
+
+Hood reputation is knowledge; today's shelf is a roll. That split is exactly what makes
+the map an atlas instead of a slot machine.
+
+**Stacking:** a hood premium (+50%) and a Demand Spike (8% on arrival, one product
+pushed toward max) can land on the same product. **Let them stack** — a rare jackpot,
+and it costs nothing because both systems already exist.
+
+---
+
 ## Open — needs a decision before spec
 
 1. **Heat surfacing (D9):** invisible in Classic, bare state word in Progressive —
-   agree? This is the only unconfirmed item.
-2. **The guaranteed slot, per hood (D8):** cheap source at every hood, plus Buckhead's
-   premium. Swappable — guaranteeing a premium instead at some hoods makes those
-   markets reliable.
+   agree?
+2. **Premium appearance odds (D10):** ~2 visits in 3, or leave it fully random?
+3. **Surfacing the ring on the location card (D10):** preference public, shelf
+   hidden — agree?
 
-Settled: **D1–D8.** Ring assignments approved as proposed. Threshold values approved
-(cash threshold + story beat, D4). Heat decay requires laying low, not the passage of
-time (D5). Sell rule settled: stock-limited only, no sell-anywhere, and unsellable
-inventory is intended risk (D8).
+Settled: **D1–D8**, with the **cheap source guaranteed at every hood** plus Buckhead's
+premium. Ring assignments approved as proposed. Threshold values approved (cash
+threshold + story beat, D4). Heat decay requires laying low, not the passage of time
+(D5). Sell rule settled: stock-limited only, no sell-anywhere, and unsellable
+inventory is intended risk (D8). DopeWars code committed and pushed (`a298fe2`).

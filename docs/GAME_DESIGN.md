@@ -1,5 +1,15 @@
 # Dope Wars Atlanta — Game Design Document
 
+> **SUPERSEDED — historical only.**
+> This document describes an abandoned vision: 11 locations (Five Points, East
+> Point, Hapeville, College Park, Airport) and car-fluid products (motor oil,
+> coolant, transmission fluid). Its §4.2 price-multiplier table is why we kept
+> thinking this work was already written down — those products do not exist in
+> the game.
+>
+> Live spec: [`SPEC.md`](../SPEC.md) · Design rationale: [`DESIGN_DECISIONS.md`](DESIGN_DECISIONS.md)
+> Do not update this file. It is kept for provenance only.
+
 > **Version:** 1.0.0  
 > **Status:** In Development  
 > **Genre:** Trading / Simulation / Strategy  

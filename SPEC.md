@@ -45,9 +45,13 @@ Product availability is **hidden** until the player arrives at that location.
 
 ### Pricing Algorithm
 
-- **Normal day**: price = base × random(0.7 to 1.3) at each location
-- **Demand spike** (~15% chance on arrival): one product pushed toward **max** — popup: *"Demand is through the roof! Prices are sky high!"*
-- **Market flood** (~10% chance on arrival): one product pushed toward **min** — popup: *"The market is flooded! Everything is cheap!"*
+**Prices are location-dependent. Profit requires travel.**
+
+- **Hood multiplier** — each hood has a cheap source (−30% buy) and a premium market (+50% sell). Full table: `docs/DESIGN_DECISIONS.md` D2 (**PROPOSED — awaiting approval**).
+- **Same-hood margin stays slightly negative** — sell ≈ 85–90% of buy, so a round trip in one place always loses a little. Without this a player buys and sells in one spot forever; bag capacity slows it, it does not stop it.
+- **Normal day**: price = base × hoodMultiplier × random(0.85 to 1.15)
+- **Demand spike** (~8% chance on arrival — **shipped rate**; this doc previously said 15%): one product pushed toward **max** — popup: *"Demand is through the roof! Prices are sky high!"*
+- **Market flood** (~5% chance on arrival — **shipped rate**; this doc previously said 10%): one product pushed toward **min** — popup: *"The market is flooded! Everything is cheap!"*
 
 ---
 
@@ -65,6 +69,17 @@ Product availability is **hidden** until the player arrives at that location.
 
 ### Game Duration
 30 / 60 / 90 days. Selected in Settings at game start.
+
+### Play Mode
+
+| Mode | Day cap | World | Heat | Win |
+|---|---|---|---|---|
+| **Classic** | Yes — 30/60/90 | All six hoods open from turn one | Random, as today | Highest net worth at end of days |
+| **Progressive** | **None** — time still costs, it is not a deadline | Gated; opens via the informant | Random + slight escalation | Own the city |
+
+Progressive is a **configuration of the same engine**, not a second engine — same
+screens, same save format with more fields set. Classic is unaffected by all of it.
+Rationale and open questions: `docs/DESIGN_DECISIONS.md` D3–D6.
 
 ---
 
@@ -180,6 +195,20 @@ Run/Fight situations only happen **once per travel turn**.
 - **Bonus**: If debt is fully paid off:
   - GSP chase chance drops to **2%**
   - Undercover cop chance drops to **1%**
+
+### Heat
+
+Heat generalises the debt bonus above into a full meter, and applies in **both**
+modes — it must not be Progressive-only, or Classic loses a system it already has.
+
+- **Rises** from carrying volume, selling hard, and (Progressive) growing territory.
+  Slight and gradual, not a spike.
+- **Modulates the §8 encounter rates** — MARTA 3%, Ryde 3%, Drive 6%, Water Boys 8%,
+  YNs 10%.
+- **Falls by laying low in one place** — a new verb for the game.
+- **The Councilman's 2% / 1% bonus stays** as the floor once debt is cleared.
+- Makes luck legible: the player can influence the odds rather than only suffer them.
+- Decay shape is an **open question** — see `docs/DESIGN_DECISIONS.md`.
 
 ---
 

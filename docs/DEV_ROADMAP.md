@@ -148,7 +148,26 @@
 
 ---
 
-## Phase 5: Multiplayer Foundation 🔌 (Weeks 9-12)
+## Phase 5: Progressive Mode 🕹️ (replaces Multiplayer Foundation)
+
+**Decision** — see `docs/DESIGN_DECISIONS.md` D3–D7.
+
+**Multiplayer is parked.** It was motivated by wanting more depth, and depth is
+cheaper to get from Progressive mode plus the economy fix. `docs/MULTIPLAYER_DESIGN.md`
+and `SPEC.md` §15 stay on disk as reference. No work is scheduled; nothing in `lib/`
+implements any of it today.
+
+**Progressive mode in its place** — a single-player configuration of the same
+engine: gated map opening via the informant, no day cap, heat in both modes,
+unlock cadence on cash thresholds plus story beats, win by owning the city.
+
+**Prerequisite: the economy fix (D1/D2)** — per-hood price multipliers. Location
+currently has no effect on price at all, so gating hoods would unlock markets that
+are indistinguishable. This lands first.
+
+---
+
+## Phase 5b: Multiplayer Foundation 🔌 (parked, unscheduled)
 
 **Goal**: Nakama server setup + real-time multiplayer for 2-4 players.
 

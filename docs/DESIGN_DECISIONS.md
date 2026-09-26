@@ -89,9 +89,10 @@ not a third peer. Naming per the house rule: clear, not clever.
 the same save format with more fields set. What it flips:
 
 - start location and which hoods are unlocked
-- day cap **off** — time still costs, it stops being a deadline
+- day cap **same as Classic** — 30/60/90 still apply (revised from "cap off"; see D12)
 - heat on
-- win condition: net worth at end of days → **own the city**
+- win condition: **own the city within the cap** — all six hoods unlocked and the
+  councilman cleared before the days run out
 - informant gating on
 
 Classic is untouched by all of it.
@@ -277,18 +278,52 @@ known for (cheap source) and what it pays for (premium) — appears on the exist
 
 ## Loose ends
 
-### Open design decisions
+### Settled this round
 
-1. **Classic's reveal rule** — all six visible, or revealed on first visit? (D11)
-2. **Progressive's end state** — all six hoods plus debt cleared is "own the city."
-   Then what: an end screen, or keep playing? And does the day count ever *end* a
-   Progressive run, or is it genuinely endless with debt as the only pressure?
-3. **The informant's mechanics** — where he lives, whether he can be found again, what
-   a tip costs, and whether refusing merely delays the unlock or loses it. This is the
-   mode's only story delivery, so its shape matters more than its content.
-4. **Difficulty inside Progressive** — the three tiers differ by starting cash, debt,
-   and `maxDays`. `maxDays` doesn't exist in Progressive, so difficulty there means
-   starting cash and debt only?
+**D12 — Progressive runs on the same clock as Classic.** Progressive keeps the
+30 / 60 / 90 duration options. This supersedes the earlier "day cap off" line in D3.
+The two modes now differ by **world and goal**, not by time model:
+
+- **Classic** — every hood open from turn one; maximise net worth before the days run
+  out. A score attack.
+- **Progressive** — the city opens as you earn it; **own the city within the cap** —
+  all six hoods unlocked and the councilman cleared before the days run out.
+
+Consequences worth stating: `maxDays` stays meaningful in Progressive, so time remains
+a real cost and **laying low costs days** — which is what gives heat its bite. Reaching
+the cap with the city unfinished ends the run with a score rather than a win, and that
+is the mode's honest failure state.
+
+**D13 — The informant.** Settled rules:
+
+- **Threshold-armed, randomly appearing.** Hitting a cash mark arms the next encounter;
+  he then turns up at random on arrival, in any hood. You cannot summon him and you
+  cannot rush him — the milestone gates *whether*, the roll gates *when*.
+- **Never in Cobb County.** Cobb is road-only and the most expensive hood to reach;
+  putting progress behind it would be a soft-lock risk (see trap 6).
+- **Paid in product, not cash.** A tip costs a named product and quantity. This is the
+  mode's central tension in one rule: **progression competes with commerce** — the
+  goods you hand him are goods you didn't sell.
+- **Refusing delays, it does not lose.** He reappears. No hard-lock, no punishment for
+  not carrying the goods yet.
+
+**D14 — Reveal rules.** One field, `knownHoods`, with two population rules:
+
+- **Classic:** a hood's reputation appears on its location card **on first visit** —
+  closest to the original, where one visit taught you everything.
+- **Progressive:** it appears when the informant tells you, so you know before you
+  travel. That teaching is the tip's reward.
+
+**D15 — Difficulty is unchanged in both modes.** Starting cash, starting debt, and
+duration. The existing three-tier table applies to Progressive as-is, because D12 gives
+Progressive the same clock.
+
+### Still open
+
+1. **Progressive's ending presentation** — end screen, or keep playing past the win?
+   The mechanics are settled (the cap ends the run); this is only what the player sees.
+2. **What the informant asks for** — which product and quantity, per tier. Content and
+   tuning, not structure.
 
 ### Implementation traps — no decision needed, but they must be in the spec
 

@@ -84,7 +84,7 @@ See `docs/DESIGN_DECISIONS.md` D8 for the guaranteed slot and the count floor.
 | Mode | Day cap | World | Heat | Win |
 |---|---|---|---|---|
 | **Classic** | Yes — 30/60/90 | All six hoods open from turn one | Random, as today | Highest net worth at end of days |
-| **Progressive** | **None** — time still costs, it is not a deadline | Gated; opens via the informant | Random + slight escalation | Own the city |
+| **Progressive** | Same — 30/60/90 | Gated; opens via the informant | Random + slight escalation | Own the city within the cap: all six hoods unlocked, councilman cleared |
 
 Progressive is a **configuration of the same engine**, not a second engine — same
 screens, same save format with more fields set. Classic is unaffected by all of it.

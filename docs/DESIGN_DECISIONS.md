@@ -170,26 +170,30 @@ any of it today.
 
 **Stable ring, volatile shelves.**
 
-- **Every hood always stocks its cheap-source product**, so the ring is always
-  runnable — you can always buy the leg you came for.
+- **Every hood always stocks ONE of its two ring products** — either its cheap source
+  or its premium market. Which one is a per-hood design choice, so sourcing and
+  cashing out are not equally reliable.
 - **Every other product is randomized per VISIT, not per game.** Arrive in Buckhead
   and it might also have Oxy and Shrooms; come back later and it might have only
-  Acid. `SPEC.md` §2 currently says "randomized at game start" — that becomes
-  per-visit.
+  Acid. `SPEC.md` §2 said "randomized at game start" — that becomes per-visit.
 - **This makes "availability is hidden until you arrive" meaningful every time**,
   not once at game start. Arrival stays an event.
 - What the player memorises is **who pays for what and who is cheap** — the ring.
   What stays uncertain is **what's on the shelf right now**.
 
-**Consequence — this forces the sell rule.** Per-visit randomization breaks the ring
-unless one of these holds:
+**The sell rule (settled): you can only buy and sell what a hood stocks this visit.**
+Sell-anywhere is **rejected**. Arriving with product a hood doesn't want is
+**intended risk, not a defect** — hauling goods to a market that doesn't want them is
+the original's sting, and it stays. What the guarantee buys is a reliable spine: some
+legs always work, the rest are a gamble.
 
-- **(A) Sell anything anywhere** — the shop shows the hood's stock for buying, plus
-  your bag as sellable. *Recommended.* Without it, arriving somewhere that happens
-  not to stock your goods leaves inventory you cannot liquidate: dead money, and a
-  potentially stalled run. Also the original's rule.
-- **(B) Guarantee each hood also stocks its premium product** — randomize only the
-  remaining slots. No shop change, but dead inventory stays possible.
+**Proposed assignment of the guaranteed slot:** every hood guarantees its **cheap
+source**, so a lap can always be *started* — and **Buckhead additionally guarantees
+its premium**, because it's home and closes the loop, making it the one place you can
+always cash out. The other premiums stay a hunt.
+
+**Count floor:** the guaranteed slot plus 2–3 random others, keeping 3–5 products per
+hood as `SPEC.md` §2 requires. A hood offering a single product reads as broken.
 
 **Implementation note:** availability must be computed **per arrival** rather than
 read from the `Location.products` const, and must **not** be persisted in the save —
@@ -217,11 +221,13 @@ Heat is **mechanically** a number. The open question is what the player sees.
 
 ## Open — needs a decision before spec
 
-1. **The sell rule (D8):** (A) sell-anywhere, or (B) guarantee the premium is also
-   stocked? Recommended: **(A)**.
-2. **Heat surfacing (D9):** invisible in Classic, bare state word in Progressive —
-   agree?
+1. **Heat surfacing (D9):** invisible in Classic, bare state word in Progressive —
+   agree? This is the only unconfirmed item.
+2. **The guaranteed slot, per hood (D8):** cheap source at every hood, plus Buckhead's
+   premium. Swappable — guaranteeing a premium instead at some hoods makes those
+   markets reliable.
 
-Settled in this session: D1–D8. Ring assignments approved as proposed. Threshold
-values approved (cash threshold + story beat, D4). Heat decay requires laying low —
-not the passage of time (D5).
+Settled: **D1–D8.** Ring assignments approved as proposed. Threshold values approved
+(cash threshold + story beat, D4). Heat decay requires laying low, not the passage of
+time (D5). Sell rule settled: stock-limited only, no sell-anywhere, and unsellable
+inventory is intended risk (D8).

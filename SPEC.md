@@ -27,16 +27,18 @@
 | **Decatur** | — |
 | **West End** | 🔫 Weapon shop |
 
-Each location **always stocks its cheap-source product** — see the ring in
-`docs/DESIGN_DECISIONS.md` D2 — so a profitable leg is always buyable. The remaining
-product slots are **randomized per visit, not per game**.
+Each location always stocks **one of its two ring products** — either its cheap source
+or its premium market; see the ring in `docs/DESIGN_DECISIONS.md` D2 — so a reliable
+spine always exists. The remaining product slots are **randomized per visit, not per
+game**.
 
 Product availability is **hidden** until the player arrives at that location — and
 because it re-rolls on every visit, arrival stays an event rather than a known
 constant.
 
-Selling is not restricted to what a hood stocks: the shop shows its stock for buying
-plus your bag as sellable. *(Pending D8 confirmation — recommended option (A).)*
+Selling is restricted to what a hood stocks **this visit** — sell-anywhere is
+rejected. Arriving with product a hood doesn't want is intended risk, not a defect.
+See `docs/DESIGN_DECISIONS.md` D8 for the guaranteed slot and the count floor.
 
 ---
 

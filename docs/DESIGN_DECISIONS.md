@@ -383,17 +383,39 @@ Hunting and trading are the same activity — you meet him while you travel — 
 budgets **overlap rather than add.** That is what makes 30 days demanding instead of
 impossible.
 
-### Still open
+### Settled — final round
 
-1. **How many hoods at the start?** The original brainstorm said Buckhead **and Decatur**;
-   D4 only settled Buckhead. This changes the unlock count from 5 to 4, and therefore the
-   whole hunt budget above.
-2. **The MARTA card.** Also from the first brainstorm — "find a MARTA card to ride MARTA in
-   the first two turns." Never resolved. For it to mean anything, MARTA must be unavailable
-   at the start, making the opening road-only.
-3. **Post-win bailout.** Does the councilman still bail you out after the Progressive win?
-   Bailouts extend the squeeze; the cleanest reading of "until they have to end the game"
-   is that they stop.
+**D18 — No bailout after the win.** The councilman declines, in dialogue: *"I think you can
+take care of yourself these days."* The man who staked you at the start is the one who tells
+you you no longer need him.
+
+**D19 — Progressive starts with two hoods: Buckhead and Decatur.** Four unlocks, not five,
+which improves the hunt budget above (~10 arrivals at p=0.4 rather than 12.5). The opening
+pair is deliberately the first ring leg — Buckhead is the cheap blunts source, Decatur pays
+premium for blunts — so the first trip teaches the mechanic. The informant's interaction
+triggers the next hood in sequence.
+
+**D20 — The MARTA card, and dropped items.** Found after the first sale, not bought, and it
+is the first instance of a general dropped-item mechanism (later, after fights). Progressive
+therefore opens road-only; Classic keeps MARTA from the start. Stored as
+`items: {marta_card: true}` so future drops need no schema change.
+
+**D17 confirmed** as a category rule — no named item, so no "he waits" rule is needed.
+
+### Open — small, surfaced by writing the specs
+
+1. **Cobb's guaranteed slot.** Cobb has no cheap source, so the D8 guarantee doesn't cover
+   it. Proposal in `PRICING_SPEC.md` §4: Cobb always stocks oxy.
+2. **The opening sale is not guaranteed.** D8 guarantees only each hood's *cheap* source, and
+   Decatur's blunts are its *premium* — so the tutorial trip can arrive to find nobody buying
+   blunts. Proposal: guarantee **both** ring products at the two starting hoods only, and let
+   randomness begin after that.
+3. **A fixed unlock order** means every Progressive run is the same route. Good for
+   learnability; less replay variety. Noted to revisit if it matters, not a blocker.
+4. **`baseSellPrice` and `highPrice` retire** under the new formula, which changes the product
+   table in `SPEC.md` §3. Needs a companion doc edit when it is built.
+
+**Spec drafts written:** `docs/PRICING_SPEC.md`, `docs/PROGRESSIVE_SPEC.md`.
 
 ### Implementation traps — no decision needed, but they must be in the spec
 

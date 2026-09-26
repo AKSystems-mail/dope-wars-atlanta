@@ -31,6 +31,11 @@ class AppTheme {
 
   // ── Font helpers ──
 
+  /// The app-wide UI scale. Applied once, via MediaQuery.textScaler in
+  /// main.dart — NOT multiplied into the font helpers below, or everything
+  /// would be scaled twice. This is the single "make it all bigger" knob.
+  static const double textScale = 1.5;
+
   /// Jersey 10 — small labels, buttons, stats, map labels, HUD items
   static TextStyle jersey10({
     double size = 10,
@@ -85,7 +90,7 @@ class AppTheme {
       color: card,
       border: Border.all(
         color: accentColor ?? accentGreen,
-        width: isActive ? 2.0 : 1.0,
+        width: isActive ? 3.0 : 2.0,
       ),
       borderRadius: BorderRadius.circular(4),
     );
@@ -103,7 +108,7 @@ class AppTheme {
   static BoxDecoration pixelBorder({Color? color, Color? fillColor}) {
     return BoxDecoration(
       color: fillColor ?? Colors.transparent,
-      border: Border.all(color: color ?? accentGreen, width: 1.0),
+      border: Border.all(color: color ?? accentGreen, width: 2.0),
       borderRadius: BorderRadius.circular(4),
     );
   }

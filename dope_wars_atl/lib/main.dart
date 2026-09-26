@@ -10,7 +10,6 @@ import 'theme/app_theme.dart';
 import 'services/game_service.dart';
 import 'screens/boot_screen.dart';
 import 'screens/game_screen.dart';
-import 'widgets/hud_widget.dart';
 import 'widgets/encounter_overlay.dart';
 import 'widgets/ad_overlay.dart';
 
@@ -80,6 +79,19 @@ class DopeWarsApp extends StatelessWidget {
         title: 'Dope Wars ATL',
         theme: AppTheme.darkTheme,
         debugShowCheckedModeBanner: false,
+        // The app-wide size knob. textScaler grows EVERY Text — including emoji
+        // and icon Text with hard-coded font sizes, which a font-size helper can
+        // never reach — and it multiplies the device's own accessibility scale,
+        // so someone who already runs their phone large keeps getting larger.
+        builder: (context, child) {
+          final device = MediaQuery.textScalerOf(context).scale(1.0);
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(AppTheme.textScale * device),
+            ),
+            child: child!,
+          );
+        },
         home: const GameWrapper(),
       ),
     );
@@ -137,9 +149,8 @@ class _GameRootState extends State<_GameRoot> {
           children: [
             Column(
               children: [
-                // Persistent HUD
-                const HudWidget(),
-                // Main game screen
+                // GameScreen renders its own PixelHud — never add a second
+                // bar here; two of them duplicated cash/debt/day/bag.
                 const Expanded(
                   child: GameScreen(),
                 ),

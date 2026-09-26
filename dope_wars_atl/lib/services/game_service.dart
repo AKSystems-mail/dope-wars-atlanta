@@ -126,7 +126,12 @@ class GameService extends ChangeNotifier {
 
     _state!.cash -= getMartaCost();
     _state!.currentLocationId = locationId;
+    // A trip always costs one day. advanceTime() only rolls the day over when
+    // the clock crosses midnight, so assert the day here instead of leaning on
+    // it — otherwise it takes a dozen hops to age the game by a single day.
+    final dayBefore = _state!.day;
     _state!.advanceTime(2);
+    if (_state!.day == dayBefore) _state!.advanceDay();
     _state!.applyDailyInterest();
 
     // Play MARTA chime
@@ -173,7 +178,12 @@ class GameService extends ChangeNotifier {
 
     _state!.cash -= cost;
     _state!.currentLocationId = locationId;
+    // A trip always costs one day. advanceTime() only rolls the day over when
+    // the clock crosses midnight, so assert the day here instead of leaning on
+    // it — otherwise it takes a dozen hops to age the game by a single day.
+    final dayBefore = _state!.day;
     _state!.advanceTime(2);
+    if (_state!.day == dayBefore) _state!.advanceDay();
     _state!.applyDailyInterest();
 
     // Play car horn for Ryde
@@ -222,7 +232,12 @@ class GameService extends ChangeNotifier {
 
     _state!.cash -= getDriveCost();
     _state!.currentLocationId = locationId;
+    // A trip always costs one day. advanceTime() only rolls the day over when
+    // the clock crosses midnight, so assert the day here instead of leaning on
+    // it — otherwise it takes a dozen hops to age the game by a single day.
+    final dayBefore = _state!.day;
     _state!.advanceTime(1);
+    if (_state!.day == dayBefore) _state!.advanceDay();
     _state!.applyDailyInterest();
 
     // Play car horn for Drive

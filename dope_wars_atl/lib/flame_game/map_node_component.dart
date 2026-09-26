@@ -43,7 +43,7 @@ class MapNodeComponent extends Component {
     if (pos == null) return;
 
     final accent = locationAccents[location.id] ?? Colors.white;
-    const double circleRadius = 16.0;
+    const double circleRadius = 24.0;
     final radius = isCurrent ? circleRadius * 1.3 : circleRadius;
     final pulseValue = (sin(_time * 2) + 1) / 2; // 0..1 oscillator
 
@@ -51,8 +51,8 @@ class MapNodeComponent extends Component {
     if (isCurrent) {
       final glowPaint = Paint()
         ..color = accent.withAlpha(64)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14);
-      canvas.drawCircle(pos, radius + 8, glowPaint);
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18);
+      canvas.drawCircle(pos, radius + 12, glowPaint);
     }
 
     // Fill circle
@@ -65,7 +65,7 @@ class MapNodeComponent extends Component {
     final strokePaint = Paint()
       ..color = accent
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
+      ..strokeWidth = 4;
     canvas.drawCircle(pos, radius, strokePaint);
 
     // Inner dot
@@ -84,7 +84,8 @@ class MapNodeComponent extends Component {
     final displayName = _displayName(location.id);
     final textStyle = TextStyle(
       color: Colors.white,
-      fontSize: 11,
+      // Flame paints this on canvas, so the global textScaler never sees it.
+      fontSize: 18,
       fontWeight: FontWeight.bold,
       fontFamily: 'monospace',
       shadows: const [

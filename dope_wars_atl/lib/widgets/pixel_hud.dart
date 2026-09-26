@@ -29,7 +29,12 @@ class PixelHud extends StatelessWidget {
           ),
         ),
       ),
-      child: Row(
+      // Wrap, not Row: at 1.5x this bar no longer fits one line on a phone,
+      // and a wrapped second line beats a clipped/overflowing one.
+      child: Wrap(
+        spacing: 14,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           // Day counter
           _HudItem(
@@ -44,7 +49,14 @@ class PixelHud extends StatelessWidget {
             color: AppTheme.gold,
           ),
 
-          const Spacer(),
+          // Bank balance (only meaningful once you've used the Bank)
+          if (state.bankBalance > 0) ...[
+            _HudItem(
+              label: 'B\$${state.bankBalance}',
+              color: AppTheme.midtown,
+            ),
+            const SizedBox(width: 12),
+          ],
 
           // Cash
           _HudItem(
@@ -77,7 +89,7 @@ class PixelHud extends StatelessWidget {
           GestureDetector(
             onTap: () => _showMenu(context, game),
             child: Container(
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 border: Border.all(
                   color: AppTheme.textSecondary.withValues(alpha: 0.3),
@@ -86,7 +98,7 @@ class PixelHud extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
                 color: AppTheme.surface,
               ),
-              child: const Text('⚙️', style: TextStyle(fontSize: 16)),
+              child: const Text('⚙️', style: TextStyle(fontSize: 20)),
             ),
           ),
         ],
@@ -320,7 +332,7 @@ class _HudItem extends StatelessWidget {
     return Text(
       label,
       style: AppTheme.jersey10(
-        size: 8,
+        size: 11,
         color: color,
       ),
     );

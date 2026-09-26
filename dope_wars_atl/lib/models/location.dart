@@ -38,6 +38,9 @@ class Location {
     }
   }
 
+  /// Connection rule: martaConnections mirrors the road links EXCEPT for Cobb
+  /// County, which has no MARTA at all. Cobb is the game's only restricted
+  /// location — every other pair works by MARTA, Ryde and Drive, both ways.
   static final List<Location> defaults = [
     // ── TRAVELABLE (6) ──
     Location(
@@ -45,7 +48,7 @@ class Location {
       name: 'West End',
       description: 'Weapons spot. Keep your head up.',
       accentColor: const Color(0xFFe53935),
-      martaConnections: ['midtown'],
+      martaConnections: ['midtown', 'decatur'],
       highwayConnections: ['midtown', 'decatur'],
       products: [
         Product.defaults[0],
@@ -58,7 +61,10 @@ class Location {
       name: 'Midtown',
       description: 'The Bank. Money moves here.',
       accentColor: const Color(0xFF1e88e5),
-      martaConnections: ['little_five'],
+      // west_end and buckhead both list Midtown under MARTA but the reverse
+      // edges were missing, so the subway only ran one way. MARTA is
+      // bidirectional; every other MARTA pair here already is.
+      martaConnections: ['little_five', 'west_end', 'buckhead', 'decatur'],
       highwayConnections: ['buckhead', 'decatur', 'west_end'],
       products: [
         Product.defaults[0],
@@ -84,7 +90,7 @@ class Location {
       name: 'Buckhead',
       description: 'The Councilman holds court here. Money talks.',
       accentColor: const Color(0xFFfdd835),
-      martaConnections: ['midtown'],
+      martaConnections: ['midtown', 'decatur'],
       highwayConnections: ['midtown', 'decatur', 'cobb'],
       products: [
         Product.defaults[0],
@@ -98,7 +104,7 @@ class Location {
       name: 'Decatur',
       description: 'College town. Solid middle market.',
       accentColor: const Color(0xFFfb8c00),
-      martaConnections: ['little_five'],
+      martaConnections: ['little_five', 'west_end', 'midtown', 'buckhead'],
       highwayConnections: ['little_five', 'midtown', 'buckhead', 'cobb', 'west_end'],
       products: [
         Product.defaults[0],

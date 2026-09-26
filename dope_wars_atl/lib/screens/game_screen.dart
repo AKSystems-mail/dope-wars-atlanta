@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../widgets/neon_widgets.dart';
 import '../models/location.dart';
+import '../models/product.dart';
 import '../models/weapon.dart';
 import '../models/game_state.dart';
 import '../services/game_service.dart';
@@ -64,6 +65,39 @@ class GameScreen extends StatelessWidget {
                   child: ListView(
                     padding: const EdgeInsets.only(bottom: 24),
                     children: [
+                      // Market — trade right here, so the room isn't a mostly
+                      // empty screen at a location with no special feature.
+                      if (state.currentLocation.products.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+                          child: Text('MARKET',
+                              style: AppTheme.jersey10(
+                                  size: 11, color: AppTheme.accentGreen)),
+                        ),
+                        ...state.currentLocation.products.map(
+                          (p) => Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: _ProductRow(
+                              game: game,
+                              product: p,
+                              onResult: (ok, msg) {
+                                if (ok) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(msg,
+                                        style: AppTheme.jersey15(
+                                            size: 14,
+                                            color: AppTheme.background)),
+                                    backgroundColor: AppTheme.danger,
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                       // Current location special features
                       if (state.currentLocation.isBank)
                         _SpecialFeatureCard(
@@ -152,50 +186,37 @@ class GameScreen extends StatelessWidget {
     );
   }
 
-  void _showShop(BuildContext context, GameService game) {
-    final location = game.currentLocation;
+  /// Every sheet opens through here so it stays LIVE. The Consumer makes the
+  /// sheet rebuild on notifyListeners(); without it a sheet renders once and
+  /// then shows frozen cash / bag / prices, so a buy or sell that actually
+  /// worked looks like it did nothing at all.
+  void _sheet(BuildContext context, Widget Function(GameService) build) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => _ShopSheet(location: location, game: game),
+      builder: (_) => Consumer<GameService>(
+        builder: (_, game, __) => build(game),
+      ),
     );
   }
 
-  void _showInventory(BuildContext context, GameService game) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => _InventorySheet(game: game),
-    );
-  }
+  void _showShop(BuildContext context, GameService game) =>
+      _sheet(context, (g) => _ShopSheet(location: g.currentLocation, game: g));
 
-  void _showBank(BuildContext context, GameService game) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => _BankSheet(game: game),
-    );
-  }
+  void _showInventory(BuildContext context, GameService game) =>
+      _sheet(context, (g) => _InventorySheet(game: g));
 
-  void _showWeaponShop(BuildContext context, GameService game) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => _WeaponSheet(game: game),
-    );
-  }
+  void _showBank(BuildContext context, GameService game) =>
+      _sheet(context, (g) => _BankSheet(game: g));
 
-  void _showCouncilman(BuildContext context, GameService game) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => _CouncilmanSheet(game: game),
-    );
-  }
+  void _showWeaponShop(BuildContext context, GameService game) =>
+      _sheet(context, (g) => _WeaponSheet(game: g));
 
-  void _showBookbagShop(BuildContext context, GameService game) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => _BookbagSheet(game: game),
-    );
-  }
+  void _showCouncilman(BuildContext context, GameService game) =>
+      _sheet(context, (g) => _CouncilmanSheet(game: g));
+
+  void _showBookbagShop(BuildContext context, GameService game) =>
+      _sheet(context, (g) => _BookbagSheet(game: g));
 }
 
 class _SpecialFeatureCard extends StatelessWidget {
@@ -259,6 +280,10 @@ class _ShopSheet extends StatefulWidget {
 }
 
 class _ShopSheetState extends State<_ShopSheet> {
+  /// Feedback for a rejected buy/sell. Without it, a full bag or an empty
+  /// pocket is a completely silent no-op — which reads as "nothing works".
+  String? _notice;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -273,71 +298,117 @@ class _ShopSheetState extends State<_ShopSheet> {
               style: AppTheme.jersey15(size: 20, color: AppTheme.accentGreen)),
           ),
           const SizedBox(height: 16),
-          ...widget.location.products.map((product) {
-            final buyPrice = widget.game.getBuyPrice(product);
-            final sellPrice = widget.game.getSellPrice(product);
-            final priceNote = widget.game.getPriceNote(product);
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.background,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(product.emoji, style: const TextStyle(fontSize: 24)),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(product.name,
-style: AppTheme.jersey15(size: 16, color: AppTheme.textPrimary)),
-                              Text(
-                                  'Buy: \$${buyPrice} | Sell: \$${sellPrice}',
-                                  style: AppTheme.jersey10(size: 10, color: AppTheme.textSecondary)),
-                            ],
-                          ),
-                        ),
-                        _QtyButton(
-                          label: 'BUY',
-                          color: AppTheme.accentGreen,
-                          onTap: () {
-                            widget.game.buyProduct(product, 1);
-                          },
-                        ),
-                        const SizedBox(width: 4),
-                        _QtyButton(
-                          label: 'SELL',
-                          color: AppTheme.accentPink,
-                          onTap: () {
-                            widget.game.sellProduct(product.id, 1);
-                          },
-                        ),
-                      ],
-                    ),
-                    if (priceNote != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(priceNote,
-                            style: AppTheme.jersey10(size: 11, color: AppTheme.accentPink),
-                      )),
-                  ],
-                ),
-              ),
-            );
-          }),
+          ...widget.location.products.map((product) => _ProductRow(
+                game: widget.game,
+                product: product,
+                onResult: (ok, msg) {
+                  if (!mounted) return;
+                  setState(() => _notice = ok ? null : msg);
+                },
+              )),
           const SizedBox(height: 8),
           Center(
             child: Text(
               'Cash: \$${widget.game.state!.cash} | Bag: ${widget.game.state!.inventoryCount}/${widget.game.state!.bagCapacity}',
               style: AppTheme.jersey10(size: 10, color: AppTheme.accentGreen)),
           ),
+          if (_notice != null) ...[
+            const SizedBox(height: 10),
+            Center(
+              child: Text(
+                _notice!,
+                textAlign: TextAlign.center,
+                style: AppTheme.jersey10(size: 11, color: AppTheme.danger),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// One tradeable product with inline BUY / SELL.
+///
+/// Shared by the room body and the shop sheet so the two can't drift apart.
+class _ProductRow extends StatelessWidget {
+  final GameService game;
+  final Product product;
+  final void Function(bool ok, String message) onResult;
+
+  const _ProductRow({
+    required this.game,
+    required this.product,
+    required this.onResult,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final buyPrice = game.getBuyPrice(product);
+    final sellPrice = game.getSellPrice(product);
+    final priceNote = game.getPriceNote(product);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(product.emoji, style: const TextStyle(fontSize: 24)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(product.name,
+                        style: AppTheme.jersey15(
+                            size: 16, color: AppTheme.textPrimary)),
+                    Text('Buy: \$$buyPrice | Sell: \$$sellPrice',
+                        style: AppTheme.jersey10(
+                            size: 10, color: AppTheme.textSecondary)),
+                  ],
+                ),
+              ),
+              _QtyButton(
+                label: 'BUY',
+                color: AppTheme.accentGreen,
+                onTap: () async {
+                  final ok = await game.buyProduct(product, 1);
+                  onResult(
+                      ok,
+                      ok
+                          ? ''
+                          : 'Bag full or not enough cash for ${product.name}.');
+                },
+              ),
+              const SizedBox(width: 4),
+              _QtyButton(
+                label: 'SELL',
+                color: AppTheme.accentPink,
+                onTap: () async {
+                  final ok = await game.sellProduct(product.id, 1);
+                  onResult(
+                      ok,
+                      ok
+                          ? ''
+                          : 'Nothing to sell — you have no ${product.name}.');
+                },
+              ),
+            ],
+          ),
+          if (priceNote != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(priceNote,
+                  style: AppTheme.jersey10(
+                      size: 11, color: AppTheme.accentPink)),
+            ),
         ],
       ),
     );

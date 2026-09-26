@@ -237,7 +237,11 @@ class MapScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => ArrivalPopup(location: dest, game: game),
-    );
+    ).then((_) {
+      // Arrival acknowledged — drop the map so the player lands in the new
+      // location's room instead of being left staring at the map.
+      if (context.mounted) Navigator.pop(context);
+    });
   }
 }
 

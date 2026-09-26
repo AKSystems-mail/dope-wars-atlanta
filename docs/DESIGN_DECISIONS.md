@@ -259,15 +259,73 @@ and it costs nothing because both systems already exist.
 
 ---
 
-## Open — needs a decision before spec
+## D11 — How the ring reaches the player (settled for Progressive)
 
-1. **How the player learns the ring (D10):** hood reputation shown on the existing
-   location card, or left to pure discovery? This is the last one.
+**The location card, introduced by the informant.** A hood's **reputation** — what it's
+known for (cheap source) and what it pays for (premium) — appears on the existing
+`location_card.dart`. The **shelf** stays hidden per `SPEC.md` §2.
 
-Settled: **D1–D10**, apart from that single question. Cheap source guaranteed at every
-hood, plus Buckhead's premium. Ring assignments approved as proposed. Threshold values
-approved (cash threshold + story beat, D4). Heat decay requires laying low, not the
-passage of time (D5). Sell rule: stock-limited only, unsellable inventory is intended
-risk (D8). Heat surfacing: no meter, no number — invisible in Classic, bare state word
-in Progressive (D9). Premium appearance: fully random (D10). DopeWars code committed
-and pushed (`a298fe2`).
+- **Progressive:** the informant introduces a hood's reputation as part of the tip, so
+  the player knows before they travel. That teaching *is* the tip's reward.
+- **Classic: still open.** Reputation cannot be Progressive-only — the economy fix
+  ships in Classic *first*, so Classic would get more complex while staying opaque.
+  Options: (a) all six visible from the start — zero new state, and Classic's identity
+  is optimization, not discovery; or (b) revealed on first visit — one new save field,
+  and closest to the original, where a single visit taught you everything.
+
+---
+
+## Loose ends
+
+### Open design decisions
+
+1. **Classic's reveal rule** — all six visible, or revealed on first visit? (D11)
+2. **Progressive's end state** — all six hoods plus debt cleared is "own the city."
+   Then what: an end screen, or keep playing? And does the day count ever *end* a
+   Progressive run, or is it genuinely endless with debt as the only pressure?
+3. **The informant's mechanics** — where he lives, whether he can be found again, what
+   a tip costs, and whether refusing merely delays the unlock or loses it. This is the
+   mode's only story delivery, so its shape matters more than its content.
+4. **Difficulty inside Progressive** — the three tiers differ by starting cash, debt,
+   and `maxDays`. `maxDays` doesn't exist in Progressive, so difficulty there means
+   starting cash and debt only?
+
+### Implementation traps — no decision needed, but they must be in the spec
+
+1. **Save-scumming the shelves.** Availability is per-arrival and deliberately *not*
+   persisted, so closing and reopening the app at the same hood would reroll a fresh
+   shelf for free, forever. Derive the roll from a saved seed + hood + visit counter so
+   it stays stable until the player actually arrives again.
+2. **Events vs multipliers.** Demand Spike and Market Flood currently use absolute
+   `highPrice` / `baseBuyPrice`. With hood multipliers they must compose —
+   `base × hood × event` — or the two systems fight. This is a money path.
+3. **Heat vs the debt bonus.** Heat scales the same §8 encounter rates that the
+   debt-cleared bonus already lowers to 2% / 1%. Needs one stated formula: heat scales
+   the rate, and the debt bonus is the floor (or the cap).
+4. **Do not reuse `isTravelable` for gating.** It's a per-location constant marked
+   "reserved for future multiplayer"; Progressive gating is per-save state. Sharing them
+   means mutating a constant at runtime and leaking unlocks between saves.
+5. **Save schema and Classic compatibility.** New fields: mode, unlocked set, intel set,
+   heat. Existing saves must load unchanged — Classic, all hoods, heat 0.
+6. **Locked hoods on the map.** They need a visual state, and no unlock order may leave
+   a hood reachable only through another locked one. No soft-locks.
+7. **Lay low needs an affordance.** If heat only drops through an explicit action, the
+   UI needs a verb for it or the mechanic is invisible.
+8. **Prices reroll on every rebuild — the displayed price is not the charged price.**
+   `_ProductRow.build()` calls `getBuyPrice` / `getSellPrice`, and `GameState.getPrice`
+   constructs `Random()` fresh on every call. So every rebuild of a product row rolls a
+   new number, and `buyProduct` rolls *again* at the moment of purchase. The shop
+   currently shows a random draw and charges a different one.
+
+   **This shares its fix with trap 1: materialize the market on arrival.** Shelf *and*
+   prices resolved once, seeded from save state, held until the player next arrives.
+   That single mechanism kills the reroll exploit and the flickering price together —
+   and it's the only way "Decatur pays 1.4x for shrooms" becomes a fact a player can
+   learn, rather than a distribution re-rolled per frame. It should therefore land
+   **first** in the pricing phase, before multipliers, because everything else is built
+   on a price that currently doesn't hold still.
+
+### Tuning, not design — defer to build
+
+Heat gain and decay rates, the Cool / Warm / Hot bands, and the informant's cash
+thresholds. Numbers that need playtesting, not a design ruling.

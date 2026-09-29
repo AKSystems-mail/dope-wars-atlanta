@@ -8,6 +8,7 @@ import 'package:dope_wars_atl/services/game_service.dart';
 import 'package:dope_wars_atl/screens/game_screen.dart';
 import 'package:dope_wars_atl/models/location.dart';
 import 'package:dope_wars_atl/models/game_state.dart';
+import 'package:dope_wars_atl/models/market.dart';
 
 void main() {
   testWidgets('GameScreen builds with a fresh game', (tester) async {
@@ -165,6 +166,44 @@ void main() {
           reason: 'BUY ALL must never overfill the bag');
       expect(state.cash, greaterThanOrEqualTo(0),
           reason: 'BUY ALL must never overspend');
+    });
+  });
+  // The floor case, with the player's own numbers: shrooms at $171, $500 in
+  // pocket. Integer division must give 2 units and leave $158 — buying a
+  // third would go negative, and silently rounding up is how a "buy" button
+  // ends up minting or voiding money.
+  group('partial buys leave the remainder', () {
+    test(r'$500 buys 2 of a $171 product and keeps $158', () async {
+      SharedPreferences.setMockInitialValues({});
+      final game = GameService();
+      await game.init();
+      final state = game.state!;
+      state.soundEnabled = false;
+
+      final product = game.marketProducts.first;
+      // Pin the shelf to the scenario: one product, $171.
+      final market = state.ensureMarket();
+      state.market = Market(
+        hoodId: market.hoodId,
+        visitIndex: market.visitIndex,
+        shelf: [product.id],
+        buyPrices: {product.id: 171},
+        sellPrices: {product.id: 150},
+      );
+      state.cash = 500;
+      final space = state.remainingSpace;
+      expect(space, greaterThanOrEqualTo(2));
+
+      // Exactly what _maxBuy computes.
+      final qty = math.min(space, state.cash ~/ 171);
+      expect(qty, 2, reason: '500 ~/ 171 floors to 2');
+      expect(await game.buyProduct(product, qty), isTrue);
+
+      expect(state.inventory[product.id] ?? 0, 2);
+      expect(state.cash, 158, reason: 'the unspent remainder stays in pocket');
+      // And a third genuinely is refused, rather than half-happening.
+      expect(await game.buyProduct(product, 1), isFalse);
+      expect(state.cash, 158, reason: 'a refused buy must not move money');
     });
   });
 }

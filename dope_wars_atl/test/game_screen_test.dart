@@ -206,4 +206,40 @@ void main() {
       expect(state.cash, 158, reason: 'a refused buy must not move money');
     });
   });
+  // The ad/arrival ordering: travelByMarta flips showAd BEFORE returning, and
+  // the map rebuilds to the AdOverlay. The arrival dialog must not open until
+  // the ad is dismissed, or the player sees "Arrived at" first.
+  group('ad before arrival', () {
+    test('a MARTA trip leaves showAd set for the map to render', () async {
+      SharedPreferences.setMockInitialValues({});
+      final game = GameService();
+      await game.init();
+      final state = game.state!;
+      state.soundEnabled = false;
+      state.cash = 5000;
+
+      // Find a MARTA-reachable neighbour of wherever we start.
+      final from = state.currentLocation;
+      final dest = from.martaConnections.firstWhere(
+        (id) => game.canTravelTo(id, isMarta: true),
+        orElse: () => throw StateError('no MARTA route from ${from.id}'),
+      );
+
+      await game.travelByMarta(dest);
+      // travelByMarta returns false (no encounter) and leaves the ad pending —
+      // that pending ad is exactly what _awaitAd gates the arrival popup on.
+      expect(game.showAd, isTrue,
+          reason: 'the ad must be set before the arrival screen is shown');
+    });
+
+    test('dismissing the ad clears the gate the arrival waits on', () async {
+      SharedPreferences.setMockInitialValues({});
+      final game = GameService();
+      await game.init();
+      game.dismissAd();
+      expect(game.showAd, isFalse,
+          reason: '_awaitAd resolves on this, then arrival proceeds');
+      expect(game.currentAdAsset, isNull);
+    });
+  });
 }

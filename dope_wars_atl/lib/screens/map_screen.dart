@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/game_service.dart';
@@ -271,10 +273,32 @@ class MapScreen extends StatelessWidget {
           encounter = false;
       }
       if (context.mounted && !encounter) {
-        // Show arrival popup
-        _showArrivalPopup(context, game, dest);
+        // travelByX() flips showAd before returning, and the map rebuilds to
+        // the AdOverlay as a result. If we open the arrival dialog on the same
+        // tick it stacks ON TOP of the ad, so the player sees "Arrived at"
+        // first and the ad afterwards (or never — the map pops underneath).
+        // Let the ad resolve first: wait for showAd to clear, then arrive.
+        await _awaitAd(game);
+        if (context.mounted) _showArrivalPopup(context, game, dest);
       }
     });
+  }
+
+  /// Resolves once the pending ad has been dismissed. A no-op when the trip
+  /// rolled an encounter instead of an ad, so the common path costs nothing.
+  Future<void> _awaitAd(GameService game) {
+    if (!game.showAd) return Future.value();
+    final done = Completer<void>();
+    void listener() {
+      if (!game.showAd) {
+        game.removeListener(listener);
+        if (!done.isCompleted) done.complete();
+      }
+    }
+    game.addListener(listener);
+    // The ad may have been dismissed between the check and addListener.
+    listener();
+    return done.future;
   }
 
   void _showArrivalPopup(BuildContext context, GameService game, Location dest) {

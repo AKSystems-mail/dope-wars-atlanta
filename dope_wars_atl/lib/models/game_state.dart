@@ -65,6 +65,16 @@ class GameState {
   static const int heatPerTrip = 1;
   static const int heatPostWinPerTrip = 3;
   static const int layLowHeatDrop = 10;
+  /// Cash movements cool a little: they are legal, small, and safe, which is
+  /// exactly why they must stay weak. Stronger than these and "deposit at the
+  /// bank every day" would out-cost lay low and the tension disappears.
+  static const int depositHeatDrop = 2;
+  /// Per $1K paid to the Councilman. Cash out, debt down.
+  static const int debtPayHeatPerThousand = 1;
+  /// Dumping mirrors selling exactly — sell raises `1 + qty ~/ 25`, dump takes
+  /// the same back. The minimum stops one-unit dumps from being a 1-for-1 heat
+  /// trade, which would beat lay low per day.
+  static const int dumpMinQty = 5;
   static const int informantSightingsBound = 3;
   static const int informantAppearPercent = 45;
 
@@ -207,13 +217,28 @@ class GameState {
     heat = (heat + amount).clamp(0, heatMax);
   }
 
-  /// Lay low for a day: the **only** way heat comes down (D5). Time passes,
-  /// which is what gives patience a price in a capped run. Post-win there is no
-  /// cooling at all — the squeeze only tightens.
+  /// Bring heat down. Every cooling action funnels through here so the one
+  /// rule holds everywhere: **heat is raised by movement, so cooling costs the
+  /// thing that moved.** Each caller passes what its action actually spends —
+  /// lay low spends a day, dumping spends goods, paying the councilman spends
+  /// cash, depositing spends interest — and the player can always cool by not
+  /// moving, but only by paying in the currency that raised it.
+  ///
+  /// No cooling exists after `won`. That is deliberate and load-bearing: the
+  /// Progressive endgame is a one-way ratchet, and a cooler that ignored the
+  /// flag would let a post-win run dump-and-deposit on loop with no clock.
+  bool coolHeat(int amount) {
+    if (amount <= 0 || won) return false;
+    final before = heat;
+    heat = (heat - amount).clamp(0, heatMax);
+    return heat < before;
+  }
+
+  /// Lay low for a day. The strongest cooler, and the only one that costs
+  /// nothing but time — which is why the others are weak by comparison (D5).
+  /// Post-win there is no cooling at all — the squeeze only tightens.
   void layLow() {
-    if (!won) {
-      heat = (heat - layLowHeatDrop).clamp(0, heatMax);
-    }
+    coolHeat(layLowHeatDrop);
     final dayBefore = day;
     // Same step as travel, so a lay-low day costs the same as a travel day.
     advanceTime(2);
@@ -512,6 +537,28 @@ class GameState {
     bagUsed = inventoryCount;
   }
 
+  /// Ditch product to cool off. The exact mirror of selling — sell raises
+  /// `1 + qty ~/ 25` heat, dumping takes the same back — so the player can
+  /// always cool by not moving, but pays in the goods instead of in profit.
+  ///
+  /// Irreversible by design, and floored at [dumpMinQty]: without the floor,
+  /// dumping one unit would shave 1 heat for one unit, beating lay low per day
+  /// and turning the bag into a free cooldown button. Returns the heat cooled,
+  /// or 0 if the dump was refused.
+  int dumpProduct(String productId, int qty) {
+    if (qty < dumpMinQty) return 0;
+    final held = inventory[productId] ?? 0;
+    if (held < qty) return 0;
+    // Gate BEFORE removing the goods. coolHeat refuses post-win, so dumping
+    // first would silently wipe the bag on a run where heat is final — the
+    // player would lose product for literally nothing.
+    if (won) return 0;
+    removeFromInventory(productId, qty);
+    final before = heat;
+    coolHeat(qty ~/ 25);
+    return before - heat;
+  }
+
   /// Lose a percentage of inventory (for encounters)
   void loseInventoryPercent(double percent) {
     final total = inventoryCount;
@@ -547,6 +594,8 @@ class GameState {
     if (cash < amount) return false;
     cash -= amount;
     bankBalance += amount;
+    // Money parked is money not moving. Weak on purpose — see depositHeatDrop.
+    coolHeat(depositHeatDrop);
     return true;
   }
 
@@ -565,6 +614,9 @@ class GameState {
     if (cash < payment) return false;
     cash -= payment;
     debt -= payment;
+    // Scaling on the amount actually paid, not what was typed, so an over-typed
+    // payment can't buy heat it didn't spend.
+    coolHeat(payment ~/ 1000 * debtPayHeatPerThousand);
     return true;
   }
 

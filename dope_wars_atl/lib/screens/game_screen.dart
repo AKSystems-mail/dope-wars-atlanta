@@ -136,13 +136,17 @@ class GameScreen extends StatelessWidget {
                         _SpecialFeatureCard(
                           emoji: '🕶️',
                           title: 'Lay Low',
-                          subtitle: state.heat <= 0
-                              ? 'Nothing to cool off right now'
-                              : 'Burn a day · heat is ${state.heatLabel.toUpperCase()}',
+                          // Post-win there is no cooling at all, so don't
+                          // advertise a verb the game will refuse.
+                          subtitle: state.won
+                              ? 'Too late to lie low now'
+                              : state.heat <= 0
+                                  ? 'Nothing to cool off right now'
+                                  : 'Burn a day · -${GameState.layLowHeatDrop} heat',
                           color: AppTheme.textSecondary,
                           onTap: () async {
                             final before = state.heatLabel;
-                            if (state.heat <= 0) return;
+                            if (state.heat <= 0 || state.won) return;
                             await game.layLow();
                             if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -687,15 +691,90 @@ style: AppTheme.jersey10(size: 11, color: AppTheme.textSecondary)),
                 children: [
                   Text('${entry.value}x', style: AppTheme.jersey10(size: 12, color: AppTheme.accentGreen)),
                   const SizedBox(width: 8),
-                  Text(entry.key, style: AppTheme.jersey15(size: 16, color: AppTheme.textPrimary)),
+                  Expanded(
+                    child: Text(entry.key, style: AppTheme.jersey15(size: 16, color: AppTheme.textPrimary)),
+                  ),
+                  // Ditching stock to cool off. Only Progressive, only pre-win,
+                  // and only when there is enough to be worth the trip — the
+                  // floor is enforced in GameState.dumpProduct, not here, so the
+                  // rule can't be bypassed by a different caller.
+                  if (state.isProgressive && !state.won && state.heat > 0)
+                    _QtyButton(
+                      label: 'DUMP',
+                      color: AppTheme.danger,
+                      onTap: () => _confirmDump(context, game, entry.key, entry.value),
+                    ),
                 ],
               ),
             );
           }),
+          if (state.isProgressive && !state.won && state.heat > 0) ...[
+            const SizedBox(height: 10),
+            Text(
+              'DUMP at least ${GameState.dumpMinQty} to cool off (heat ${state.heatLabel.toUpperCase()}). '
+              'Lay low still cools you twice as fast.',
+              textAlign: TextAlign.center,
+              style: AppTheme.jersey10(size: 10, color: AppTheme.textSecondary),
+            ),
+          ],
         ],
       ),
     );
   }
+}
+
+/// Dumping is the only irreversible thing in the inventory sheet, and the bag
+/// IS the bankroll — a mis-tap here is a real loss, so it confirms. The whole
+/// held quantity is dumped: picking a partial size for no gain would be a
+/// second decision for no reason.
+Future<void> _confirmDump(
+    BuildContext context, GameService game, String productId, int held) async {
+  final qty = held;
+  final canDump = held >= GameState.dumpMinQty;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: AppTheme.surface,
+      title: Text('DUMP $qty $productId?',
+          style: AppTheme.jersey15(size: 16, color: AppTheme.danger)),
+      content: Text(
+        canDump
+            ? 'Gone for good. This cools you off, but the profit goes with it.'
+            : 'You need at least ${GameState.dumpMinQty} to dump. Hold more or lay low instead.',
+        style: AppTheme.jersey10(size: 12, color: AppTheme.textPrimary),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: Text('CANCEL',
+              style: AppTheme.jersey10(size: 12, color: AppTheme.textSecondary)),
+        ),
+        if (canDump)
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('DUMP IT',
+                style: AppTheme.jersey10(size: 12, color: AppTheme.danger)),
+          ),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  final before = game.state!.heat;
+  final cooled = await game.dumpProduct(productId, qty);
+  if (!context.mounted) return;
+  final was = before >= 70 ? 'HOT' : (before >= 30 ? 'WARM' : 'COOL');
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        cooled > 0
+            ? 'Dumped $qty $productId. Heat $was → ${game.state!.heatLabel.toUpperCase()}.'
+            : 'Nothing to dump.',
+        style: AppTheme.jersey15(size: 14, color: AppTheme.background),
+      ),
+      backgroundColor: AppTheme.danger,
+      duration: const Duration(seconds: 2),
+    ),
+  );
 }
 
 class _BankSheet extends StatelessWidget {
@@ -723,6 +802,12 @@ class _BankSheet extends StatelessWidget {
           Text(
             '1% daily interest on savings',
             style: AppTheme.jersey10(size: 11, color: AppTheme.accentGreen)),
+          // Money parked is money not moving — say so, or the cool reads as a bug.
+          if (state.isProgressive && !state.won)
+            Text(
+              'Depositing cools you off ${GameState.depositHeatDrop} heat',
+              style: AppTheme.jersey10(size: 11, color: AppTheme.accentGreen),
+            ),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -1057,6 +1142,11 @@ class _CouncilmanSheet extends StatelessWidget {
           Text(
             'Debt: \$${state.debt} (2% daily interest)',
             style: AppTheme.jersey10(size: 10, color: AppTheme.accentPink)),
+          if (state.isProgressive && !state.won)
+            Text(
+              'Paying down cools you ${GameState.debtPayHeatPerThousand} per \$1K',
+              style: AppTheme.jersey10(size: 10, color: AppTheme.accentGreen),
+            ),
           Text(
             'Net worth: \$${state.netWorth}',
             style: AppTheme.jersey10(size: 10, color: AppTheme.textSecondary)),

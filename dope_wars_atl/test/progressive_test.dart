@@ -180,4 +180,94 @@ void main() {
       expect(old.cash, 2500);
     });
   });
+
+  // Heat has four coolers, all funnelled through coolHeat so one rule holds:
+  // heat is raised by movement, so cooling costs the thing that moved. Post-win
+  // none of them fire — the Progressive endgame is a one-way ratchet.
+  group('cooling actions', () {
+    GameState hot() =>
+        GameState.fromDifficulty('normal', mode: 'progressive')..heat = 60;
+
+    test('lay low drops its flat amount, capped at zero', () {
+      final s = hot();
+      s.layLow();
+      expect(s.heat, 60 - GameState.layLowHeatDrop);
+
+      final low = hot()..heat = 3;
+      low.layLow();
+      expect(low.heat, 0, reason: 'heat must never go negative');
+    });
+
+    test('deposit cools a little and moves the money', () {
+      final s = hot();
+      final cash = s.cash;
+      expect(s.deposit(1000), isTrue);
+      expect(s.heat, 60 - GameState.depositHeatDrop);
+      expect(s.cash, cash - 1000);
+      expect(s.bankBalance, 1000);
+    });
+
+    test('paying debt scales with the amount actually paid', () {
+      final s = hot();
+      expect(s.payDebt(3000), isTrue);
+      expect(s.heat, 60 - 3 * GameState.debtPayHeatPerThousand);
+      expect(s.debt, 10000 - 3000);
+
+      // Below $1K cools nothing, and an over-typed payment can't buy heat it
+      // didn't spend: only the amount actually applied counts.
+      final small = hot()..cash = 5000;
+      small.payDebt(500);
+      expect(small.heat, 60, reason: 'no full thousand, no cool');
+    });
+
+    test('dumping mirrors selling and destroys the goods', () {
+      final s = hot()..addToInventory('shrooms', 50);
+      final cooled = s.dumpProduct('shrooms', 25);
+      expect(cooled, 25 ~/ 25, reason: 'dump takes back what sell would add');
+      expect(s.heat, 60 - 1);
+      expect(s.inventory['shrooms'], 25, reason: 'the goods are gone for good');
+    });
+
+    test('a dump under the minimum is refused outright', () {
+      final s = hot()..addToInventory('shrooms', 4);
+      expect(s.dumpProduct('shrooms', 4), 0);
+      expect(s.inventory['shrooms'], 4, reason: 'a refused dump keeps the stock');
+      expect(s.heat, 60, reason: 'and cools nothing');
+
+      // The floor is the anti-exploit: without it, dumping 1 unit would shave
+      // heat at 1-for-1 and beat lay low per day.
+      expect(s.dumpProduct('shrooms', 1), 0);
+    });
+
+    test('dumping more than you hold is refused', () {
+      final s = hot()..addToInventory('shrooms', 10);
+      expect(s.dumpProduct('shrooms', 25), 0);
+      expect(s.inventory['shrooms'], 10);
+      expect(s.heat, 60);
+    });
+
+    test('after winning, nothing cools', () {
+      final s = hot()
+        ..addToInventory('shrooms', 50)
+        ..won = true;
+
+      expect(s.coolHeat(50), isFalse, reason: 'the gate is the helper itself');
+      s.layLow();
+      s.deposit(1000);
+      s.payDebt(1000);
+      s.dumpProduct('shrooms', 25);
+
+      expect(s.heat, 60, reason: 'post-win heat is final');
+      expect(s.inventory['shrooms'], 50,
+          reason: 'and a refused dump must not destroy stock either');
+    });
+
+    test('lay low still costs a day even when it cannot cool', () {
+      final s = hot()..won = true;
+      final day = s.day;
+      s.layLow();
+      expect(s.heat, 60);
+      expect(s.day, greaterThan(day), reason: 'time passes either way');
+    });
+  });
 }

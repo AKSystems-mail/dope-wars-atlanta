@@ -784,6 +784,20 @@ class GameService extends ChangeNotifier {
     return true;
   }
 
+  /// Ditch product to cool off. Returns the heat actually cooled — 0 means the
+  /// dump was refused (too small, or nothing held, or the run has already won
+  /// and heat is final).
+  Future<int> dumpProduct(String productId, int qty) async {
+    if (_state == null) return 0;
+    final cooled = _state!.dumpProduct(productId, qty);
+    if (cooled > 0) {
+      if (_state!.soundEnabled) sound.playCashRegister();
+      notifyListeners();
+      await autoSave();
+    }
+    return cooled;
+  }
+
   // ---- BANK ----
 
   Future<bool> deposit(int amount) async {

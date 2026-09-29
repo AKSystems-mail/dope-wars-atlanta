@@ -31,7 +31,7 @@ void main() {
     await tester.pump();
 
     expect(tester.takeException(), isNull, reason: 'GameScreen threw while building');
-    expect(find.textContaining('TRADE'), findsWidgets, reason: 'bottom nav must render');
+    expect(find.textContaining('INVENTORY'), findsWidgets, reason: 'bottom nav must render');
   });
 
   // A save written before the v3 map rework can hold a location id that no
@@ -59,7 +59,7 @@ void main() {
 
     expect(tester.takeException(), isNull,
         reason: 'a stale saved location id must not crash the game screen');
-    expect(find.textContaining('TRADE'), findsWidgets);
+    expect(find.textContaining('INVENTORY'), findsWidgets);
   });
 
   test('getById never throws for an unknown id', () {
@@ -144,30 +144,54 @@ void main() {
       expect(state.cash, greaterThan(cashBefore), reason: 'selling pays out');
     });
 
-    test('BUY ALL stops at the bag and the wallet, never past either', () async {
+    // There is no shelf-wide BUY ALL / SELL ALL any more: bulk is per product
+    // and per direction, resolved inside the per-item trade dialog. So MAX is
+    // pinned per product — buy-MAX by space and cash, sell-MAX by what you hold
+    // — and both must land as a qty the service actually accepts.
+    test('per-item buy MAX and sell MAX resolve for one product', () async {
       SharedPreferences.setMockInitialValues({});
       final game = GameService();
       await game.init();
       final state = game.state!;
       state.soundEnabled = false;
       state.cash = 500;
+      state.bagCapacity = 50;
 
-      // Mirror _buyAll: cheapest first, clamped to space and cash.
-      final shelf = [...game.marketProducts]
-        ..sort((a, b) => game.getBuyPrice(a).compareTo(game.getBuyPrice(b)));
-      for (final p in shelf) {
-        if (state.remainingSpace <= 0 || state.cash <= 0) break;
-        final price = game.getBuyPrice(p);
-        if (price <= 0) continue;
-        final qty = math.min(state.remainingSpace, state.cash ~/ price);
-        if (qty <= 0) continue;
-        await game.buyProduct(p, qty);
-      }
+      final p = game.marketProducts.first;
+      final price = game.getBuyPrice(p);
+      expect(price, greaterThan(0), reason: 'a stocked product has a real price');
+
+      // buy MAX = min(remainingSpace, cash ~/ price) — never fractional.
+      final buyMax = math.min(state.remainingSpace, state.cash ~/ price);
+      expect(buyMax, greaterThan(0), reason: 'a stocked product is affordable');
+      expect(await game.buyProduct(p, buyMax), isTrue,
+          reason: 'the qty the dialog computes must be one the service accepts');
+      expect(state.inventory[p.id], buyMax);
+
+      // sell MAX = everything held, and it clears the product exactly.
+      final sellMax = state.inventory[p.id] ?? 0;
+      expect(sellMax, buyMax, reason: 'sell MAX is what this product holds');
+      expect(await game.sellProduct(p.id, sellMax), isTrue);
+      expect(state.inventory[p.id] ?? 0, 0,
+          reason: 'sell MAX empties the product it was opened for');
+    });
+
+    test('buy MAX never overfills the bag or overspends the wallet', () async {
+      SharedPreferences.setMockInitialValues({});
+      final game = GameService();
+      await game.init();
+      final state = game.state!;
+      state.soundEnabled = false;
+      state.cash = 95;
+
+      final p = game.marketProducts.first;
+      final qty = math.min(state.remainingSpace, state.cash ~/ game.getBuyPrice(p));
+      await game.buyProduct(p, qty);
 
       expect(state.inventoryCount, lessThanOrEqualTo(state.bagCapacity),
-          reason: 'BUY ALL must never overfill the bag');
+          reason: 'a per-item MAX must never overfill the bag');
       expect(state.cash, greaterThanOrEqualTo(0),
-          reason: 'BUY ALL must never overspend');
+          reason: 'a per-item MAX must never overspend');
     });
   });
   // The floor case, with the player's own numbers: shrooms at $171, $500 in

@@ -80,7 +80,7 @@ class GameScreen extends StatelessWidget {
                                   style: AppTheme.jersey10(
                                       size: 11, color: AppTheme.accentGreen)),
                               const SizedBox(width: 8),
-                              Text('· tap TRADE to buy or sell',
+                              Text('· tap a product to buy or sell',
                                   style: AppTheme.jersey10(
                                       size: 10,
                                       color: AppTheme.textSecondary)),
@@ -90,12 +90,7 @@ class GameScreen extends StatelessWidget {
                         ...game.marketProducts.map(
                           (p) => Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: _ProductRow(
-                              game: game,
-                              product: p,
-                              tradeEnabled: false,
-                              onResult: (_, __) {},
-                            ),
+                            child: _ProductRow(game: game, product: p),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -179,17 +174,10 @@ class GameScreen extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      Expanded(
-                        child: NeonActionButton(
-                          // Not "BUY": this sheet sells too, and a button that
-                          // promises one thing and does another is how two
-                          // surfaces end up doing the same job.
-                          label: 'TRADE',
-                          onPressed: () => _showShop(context, game),
-                          neonColor: AppTheme.accentGreen,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
+                      // No TRADE button: the market board on this screen IS the
+                      // trade surface now — each product row opens its own
+                      // buy/sell window. A button that opened a second copy of
+                      // the same list is the duplication we just deleted.
                       Expanded(
                         child: NeonActionButton(
                           label: 'MAP',
@@ -232,9 +220,6 @@ class GameScreen extends StatelessWidget {
       ),
     );
   }
-
-  void _showShop(BuildContext context, GameService game) =>
-      _sheet(context, (g) => _ShopSheet(location: g.currentLocation, game: g));
 
   void _showInventory(BuildContext context, GameService game) =>
       _sheet(context, (g) => _InventorySheet(game: g));
@@ -302,172 +287,102 @@ style: AppTheme.jersey15(size: 12, color: AppTheme.textSecondary)),
   }
 }
 
-class _ShopSheet extends StatefulWidget {
-  final Location location;
+/// One price line on the market board. Tapping it opens [_ItemTradeDialog] —
+/// the buy/sell decision is per product, so the controls live in a dialog
+/// scoped to that one product rather than spread across the whole shelf.
+class _ProductRow extends StatelessWidget {
   final GameService game;
+  final Product product;
 
-  const _ShopSheet({required this.location, required this.game});
-
-  @override
-  State<_ShopSheet> createState() => _ShopSheetState();
-}
-
-class _ShopSheetState extends State<_ShopSheet> {
-  /// Feedback for a rejected buy/sell. Without it, a full bag or an empty
-  /// pocket is a completely silent no-op — which reads as "nothing works".
-  String? _notice;
-
-  /// Sell the whole bag, but only what THIS hood trades (D8). Iterates the
-  /// shelf rather than the inventory so a product this hood doesn't carry is
-  /// never attempted — sellProduct would just reject it, and the leftover
-  /// message would imply the game lost your stock.
-  ///
-  /// Loops the existing single-product call on purpose: each sale raises heat
-  /// and can drop the MARTA card, and a batched service method would have to
-  /// reproduce all of that. Reuse over a parallel path.
-  Future<void> _sellAll() async {
-    final game = widget.game;
-    var moved = 0;
-    for (final p in game.marketProducts) {
-      final held = game.state?.inventory[p.id] ?? 0;
-      if (held <= 0) continue;
-      if (await game.sellProduct(p.id, held)) moved += held;
-    }
-    if (!mounted) return;
-    setState(() => _notice = moved == 0
-        ? 'Nothing here you can sell.'
-        : 'Sold $moved unit${moved == 1 ? '' : 's'}.');
-  }
-
-  /// Fill whatever bag space is left, cheapest unit price first — more units
-  /// per dollar, and it stops the moment the bag or the wallet runs out rather
-  /// than burning the remainder on a product the row-level MAX already covers.
-  Future<void> _buyAll() async {
-    final game = widget.game;
-    // Cheapest first. Ties broken by id so the result is deterministic.
-    final shelf = [...game.marketProducts]
-      ..sort((a, b) {
-        final c = game.getBuyPrice(a).compareTo(game.getBuyPrice(b));
-        return c != 0 ? c : a.id.compareTo(b.id);
-      });
-    var bought = 0;
-    for (final p in shelf) {
-      final s = game.state!;
-      if (s.remainingSpace <= 0 || s.cash <= 0) break;
-      final price = game.getBuyPrice(p);
-      if (price <= 0) continue;
-      final qty = math.min(s.remainingSpace, s.cash ~/ price);
-      if (qty <= 0) continue;
-      if (await game.buyProduct(p, qty)) bought += qty;
-    }
-    if (!mounted) return;
-    setState(() => _notice = bought == 0
-        ? 'No room or no cash to buy anything here.'
-        : 'Bought $bought unit${bought == 1 ? '' : 's'}.');
-  }
+  const _ProductRow({required this.game, required this.product});
 
   @override
   Widget build(BuildContext context) {
-    final state = widget.game.state!;
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Text(
-              '${widget.location.name} — TRADE',
-              style: AppTheme.jersey15(size: 20, color: AppTheme.accentGreen),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Center(
-            child: Text(
-              'Cash: \$${state.cash} | Bag: ${state.inventoryCount}/${state.bagCapacity}',
-              style: AppTheme.jersey10(size: 10, color: AppTheme.accentGreen),
-            ),
-          ),
-          // Whole-bag actions. These aren't row-level: a run ends in "sell the
-          // 40 units I've been carrying", which is one decision, not eight.
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: NeonActionButton(
-                  label: 'BUY ALL',
-                  onPressed: _buyAll,
-                  neonColor: AppTheme.accentGreen,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: NeonActionButton(
-                  label: 'SELL ALL',
-                  onPressed: _sellAll,
-                  neonColor: AppTheme.accentPink,
-                ),
-              ),
-            ],
-          ),
-          // Rows are taller now (held count + qty stepper), and the sheet is
-          // already isScrollControlled — without a scroll the bottom rows and
-          // the bag are simply unreachable on a short phone.
-          Flexible(
-            child: ListView(
-              shrinkWrap: true,
+    final product = this.product;
+    final buyPrice = game.getBuyPrice(product);
+    final sellPrice = game.getSellPrice(product);
+    final priceNote = game.getPriceNote(product);
+    final held = game.state?.inventory[product.id] ?? 0;
+
+    return GestureDetector(
+      onTap: () => _showItemTrade(context, game, product),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppTheme.background,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                const SizedBox(height: 12),
-                ...widget.game.marketProducts.map((product) => _ProductRow(
-                      game: widget.game,
-                      product: product,
-                      onResult: (ok, msg) {
-                        if (!mounted) return;
-                        setState(() => _notice = ok ? null : msg);
-                      },
-                    )),
+                Text(product.emoji, style: const TextStyle(fontSize: 24)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(product.name,
+                                style: AppTheme.jersey15(
+                                    size: 16, color: AppTheme.textPrimary)),
+                          ),
+                          // What you actually hold, right on the price line, so
+                          // SELL is never a blind button and INVENTORY stops
+                          // being the cross-check screen.
+                          if (held > 0) ...[
+                            const SizedBox(width: 6),
+                            Text('×$held',
+                                style: AppTheme.jersey10(
+                                    size: 12, color: AppTheme.gold)),
+                          ],
+                        ],
+                      ),
+                      Text('Buy: \$$buyPrice | Sell: \$$sellPrice',
+                          style: AppTheme.jersey10(
+                              size: 10, color: AppTheme.textSecondary)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right,
+                    size: 18, color: AppTheme.textSecondary),
               ],
             ),
-          ),
-          if (_notice != null) ...[
-            const SizedBox(height: 10),
-            Center(
-              child: Text(
-                _notice!,
-                textAlign: TextAlign.center,
-                style: AppTheme.jersey10(size: 11, color: AppTheme.danger),
+            if (priceNote != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(priceNote,
+                    style: AppTheme.jersey10(
+                        size: 11, color: AppTheme.accentPink)),
               ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
 }
 
-/// One tradeable product.
+/// Buy/sell window for ONE product.
 ///
-/// [tradeEnabled] is the single switch that lets the room and the trade sheet
-/// share this widget: the room shows prices (read-only price board), the sheet
-/// shows the buttons. Same row, two densities — they can't drift.
-class _ProductRow extends StatefulWidget {
+/// MAX is per product and per direction: buy-MAX is clamped by bag space and
+/// cash, sell-MAX is what you hold. There is no whole-shelf BUY ALL / SELL ALL —
+/// buying the entire market cheapest-first is a shopping decision, not a
+/// DopeWars one, and it made the player choose a product they didn't want.
+class _ItemTradeDialog extends StatefulWidget {
   final GameService game;
   final Product product;
-  final bool tradeEnabled;
-  final void Function(bool ok, String message) onResult;
 
-  const _ProductRow({
-    required this.game,
-    required this.product,
-    this.tradeEnabled = true,
-    required this.onResult,
-  });
+  const _ItemTradeDialog({required this.game, required this.product});
 
   @override
-  State<_ProductRow> createState() => _ProductRowState();
+  State<_ItemTradeDialog> createState() => _ItemTradeDialogState();
 }
 
-class _ProductRowState extends State<_ProductRow> {
+class _ItemTradeDialogState extends State<_ItemTradeDialog> {
   /// 0 = MAX, otherwise the literal step. A run is buy-20/sell-20, so tapping
   /// ×1 twenty times is not a control, it's a chore.
   int _step = 1;
@@ -477,7 +392,8 @@ class _ProductRowState extends State<_ProductRow> {
   int get _held => widget.game.state?.inventory[widget.product.id] ?? 0;
 
   /// How many a MAX tap should move, clamped to what the game will actually
-  /// allow. Buys are gated by bag space and cash; sells by what you hold.
+  /// allow. Integer division floors deliberately: $500 at $171 buys 2, leaving
+  /// $158 — the player keeps the remainder rather than being spent down to zero.
   int _maxBuy() {
     final s = widget.game.state;
     if (s == null) return 0;
@@ -492,14 +408,22 @@ class _ProductRowState extends State<_ProductRow> {
     return math.max(1, n);
   }
 
+  /// How many the current step actually moves. For MAX this is the clamped
+  /// buy/sell count, so the button label shows the real number instead of a
+  /// mystery "MAX" that resolves differently per direction.
+  int _qtyFor(bool buying) => _resolve(buying);
+
+  String? _notice;
+
   Future<void> _trade(bool buying) async {
-    final qty = _resolve(buying);
+    final qty = _qtyFor(buying);
     final ok = buying
         ? await widget.game.buyProduct(widget.product, qty)
         : await widget.game.sellProduct(widget.product.id, qty);
+    if (!mounted) return;
     final p = widget.product.name;
-    widget.onResult(ok, ok
-        ? ''
+    setState(() => _notice = ok
+        ? null
         : buying
             ? 'Bag full or not enough cash for $p.'
             : 'Nothing to sell — you have no $p.');
@@ -508,98 +432,112 @@ class _ProductRowState extends State<_ProductRow> {
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
+    final s = widget.game.state!;
     final buyPrice = widget.game.getBuyPrice(product);
     final sellPrice = widget.game.getSellPrice(product);
     final priceNote = widget.game.getPriceNote(product);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.background,
-        borderRadius: BorderRadius.circular(8),
-      ),
+    return Padding(
+      padding: const EdgeInsets.all(24),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Center(
+            child: Text('${product.emoji} ${product.name}',
+                style: AppTheme.jersey15(size: 20, color: AppTheme.textPrimary)),
+          ),
+          const SizedBox(height: 4),
+          Center(
+            child: Text(
+              'Buy \$$buyPrice | Sell \$$sellPrice'
+              '${_held > 0 ? ' | Holding $_held' : ''}',
+              style: AppTheme.jersey10(size: 11, color: AppTheme.gold),
+            ),
+          ),
+          Center(
+            child: Text(
+              'Cash \$${s.cash} | Bag ${s.inventoryCount}/${s.bagCapacity}',
+              style: AppTheme.jersey10(size: 10, color: AppTheme.textSecondary),
+            ),
+          ),
+          if (priceNote != null)
+            Center(
+              child: Text(priceNote,
+                  style: AppTheme.jersey10(size: 11, color: AppTheme.accentPink)),
+            ),
+          const SizedBox(height: 14),
+          // Quantity applies to whichever direction is pressed below.
           Row(
             children: [
-              Text(product.emoji, style: const TextStyle(fontSize: 24)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(product.name,
-                              style: AppTheme.jersey15(
-                                  size: 16, color: AppTheme.textPrimary)),
-                        ),
-                        // What you actually hold. Without this, SELL is a blind
-                        // button and INVENTORY becomes the cross-check screen.
-                        if (_held > 0) ...[
-                          const SizedBox(width: 6),
-                          Text('×$_held',
-                              style: AppTheme.jersey10(
-                                  size: 12, color: AppTheme.gold)),
-                        ],
-                      ],
+              Text('QTY',
+                  style:
+                      AppTheme.jersey10(size: 10, color: AppTheme.textSecondary)),
+              const SizedBox(width: 8),
+              ..._steps.map((st) => Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: _QtyButton(
+                      label: st == 0 ? 'MAX' : '$st',
+                      color: st == _step
+                          ? AppTheme.textPrimary
+                          : AppTheme.textSecondary,
+                      onTap: () => setState(() => _step = st),
                     ),
-                    Text('Buy: \$$buyPrice | Sell: \$$sellPrice',
-                        style: AppTheme.jersey10(
-                            size: 10, color: AppTheme.textSecondary)),
-                  ],
-                ),
+                  )),
+              const Spacer(),
+              Text(
+                _step == 0
+                    ? 'buy ${_qtyFor(true)} / sell ${_qtyFor(false)}'
+                    : '$_step unit${_step == 1 ? '' : 's'}',
+                style: AppTheme.jersey10(size: 10, color: AppTheme.textSecondary),
               ),
-              if (widget.tradeEnabled) ...[
-                _QtyButton(
-                  label: 'BUY',
-                  color: AppTheme.accentGreen,
-                  onTap: () => _trade(true),
-                ),
-                const SizedBox(width: 4),
-                _QtyButton(
-                  label: 'SELL',
-                  color: AppTheme.accentPink,
-                  onTap: () => _trade(false),
-                ),
-              ],
             ],
           ),
-          if (widget.tradeEnabled) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text('QTY',
-                    style: AppTheme.jersey10(
-                        size: 10, color: AppTheme.textSecondary)),
-                const SizedBox(width: 8),
-                ..._steps.map((s) => Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: _QtyButton(
-                        label: s == 0 ? 'MAX' : '$s',
-                        color: s == _step
-                            ? AppTheme.textPrimary
-                            : AppTheme.textSecondary,
-                        onTap: () => setState(() => _step = s),
-                      ),
-                    )),
-              ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: NeonActionButton(
+                  label: 'BUY ${_qtyFor(true)}',
+                  onPressed: () => _trade(true),
+                  neonColor: AppTheme.accentGreen,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: NeonActionButton(
+                  label: 'SELL ${_qtyFor(false)}',
+                  onPressed: () => _trade(false),
+                  neonColor: AppTheme.accentPink,
+                ),
+              ),
+            ],
+          ),
+          if (_notice != null) ...[
+            const SizedBox(height: 10),
+            Center(
+              child: Text(_notice!,
+                  textAlign: TextAlign.center,
+                  style: AppTheme.jersey10(size: 11, color: AppTheme.danger)),
             ),
           ],
-          if (priceNote != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(priceNote,
-                  style: AppTheme.jersey10(
-                      size: 11, color: AppTheme.accentPink)),
-            ),
         ],
       ),
     );
   }
+}
+
+Future<void> _showItemTrade(
+    BuildContext context, GameService game, Product product) {
+  return showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: AppTheme.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (_) => _ItemTradeDialog(game: game, product: product),
+  );
 }
 
 class _QtyButton extends StatelessWidget {

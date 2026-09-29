@@ -550,10 +550,8 @@ class GameService extends ChangeNotifier {
   void _runFromPolice() {
     // Run chance based on weapon
     final runChance = _state!.equippedWeapon.killChance * 0.6;
-    // A gun comes out here too — same rule as _fightPolice: fists stay silent.
-    if (_state!.soundEnabled && !_state!.equippedWeapon.isFists) {
-      sound.playWeaponFire();
-    }
+    // No weapon sfx here: running is running. The gun shapes the odds, it is
+    // never fired, so a shot would be a sound for a thing that did not happen.
     if (Random().nextDouble() <= runChance) {
       _setEncounterBlock(
         '🏃‍♂️ You bolted!\n\nYou disappeared into the Atlanta night.\n\nClose one.',

@@ -177,6 +177,7 @@ class _GameRootState extends State<_GameRoot> {
               EncounterOverlay(
                 text: widget.game.encounterText,
                 choices: widget.game.encounterChoices,
+                image: widget.game.encounterImage,
                 onDismiss: widget.game.dismissEncounter,
               ),
             // Ad overlay (shown on top of everything)

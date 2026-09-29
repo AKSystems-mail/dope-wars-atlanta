@@ -5,12 +5,15 @@ class EncounterOverlay extends StatefulWidget {
   final String text;
   final List<EncounterChoice>? choices;
   final VoidCallback onDismiss;
+  /// Optional scene art shown as a full-bleed backdrop behind the text.
+  final String? image;
 
   const EncounterOverlay({
     super.key,
     required this.text,
     this.choices,
     required this.onDismiss,
+    this.image,
   });
 
   @override
@@ -57,88 +60,112 @@ class _EncounterOverlayState extends State<EncounterOverlay>
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _scrollAnimation,
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppTheme.background.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppTheme.accentGreen.withValues(alpha: 0.5),
-              width: 1,
-            ),
+    final art = widget.image;
+
+    // The text panel, unchanged, lifted to the bottom so it reads over the art
+    // instead of competing with it.
+    final panel = Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.background.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppTheme.accentGreen.withValues(alpha: 0.5),
+            width: 1,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Typewriter text lines
-              ...List.generate(
-                _visibleLines.clamp(0, _lines.length),
-                (i) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    _lines[i],
-                    style: AppTheme.jersey10(size: 10,
-                      color: AppTheme.accentGreen,
-                      height: 1.6,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Typewriter text lines
+            ...List.generate(
+              _visibleLines.clamp(0, _lines.length),
+              (i) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  _lines[i],
+                  style: AppTheme.jersey10(size: 10,
+                    color: AppTheme.accentGreen,
+                    height: 1.6,
+                  ),
+                ),
+              ),
+            ),
+            if (widget.choices != null && widget.choices!.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: widget.choices!.map((choice) {
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: ElevatedButton(
+                        onPressed: choice.onTap,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: choice.color ?? AppTheme.accentGreen,
+                          foregroundColor: AppTheme.background,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: Text(
+                          choice.label,
+                          style: AppTheme.jersey10(size: 11,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+            // Tap to dismiss
+            if (widget.choices == null || widget.choices!.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: GestureDetector(
+                  onTap: widget.onDismiss,
+                  child: Center(
+                    child: Text(
+                      '[ TAP TO CONTINUE ]',
+                      style: AppTheme.jersey10(size: 10,
+                        color: AppTheme.textSecondary,
+                      ),
                     ),
                   ),
                 ),
               ),
-              if (widget.choices != null && widget.choices!.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: widget.choices!.map((choice) {
-                    return Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: ElevatedButton(
-                          onPressed: choice.onTap,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: choice.color ?? AppTheme.accentGreen,
-                            foregroundColor: AppTheme.background,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: Text(
-                            choice.label,
-                            style: AppTheme.jersey10(size: 11,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-              // Tap to dismiss
-              if (widget.choices == null || widget.choices!.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: GestureDetector(
-                    onTap: widget.onDismiss,
-                    child: Center(
-                      child: Text(
-                        '[ TAP TO CONTINUE ]',
-                        style: AppTheme.jersey10(size: 10,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          ],
         ),
       ),
+    );
+
+    return FadeTransition(
+      opacity: _scrollAnimation,
+      child: art == null
+          ? panel
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                // Backdrop. Cover so it fills any aspect, and NEAREST so the
+                // pixel grid stays crisp — the default filter smears it, which
+                // defeats the entire point of pixel art.
+                Image.asset(
+                  art,
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.none,
+                ),
+                // Scrim so the panel text stays readable over any part of the
+                // art, and the scene dims while you read.
+                Container(color: AppTheme.background.withValues(alpha: 0.35)),
+                panel,
+              ],
+            ),
     );
   }
 }

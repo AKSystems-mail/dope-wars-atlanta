@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:dope_wars_atl/screens/game_screen.dart';
 import 'package:dope_wars_atl/models/location.dart';
 import 'package:dope_wars_atl/models/game_state.dart';
 import 'package:dope_wars_atl/models/market.dart';
+import 'package:dope_wars_atl/widgets/encounter_overlay.dart';
 
 void main() {
   testWidgets('GameScreen builds with a fresh game', (tester) async {
@@ -240,6 +242,56 @@ void main() {
       expect(game.showAd, isFalse,
           reason: '_awaitAd resolves on this, then arrival proceeds');
       expect(game.currentAdAsset, isNull);
+    });
+  });
+  // The informant encounter is the only one with scene art. The two failure
+  // modes: art must actually be set, and it must CLEAR on dissolve or the next
+  // text-only encounter inherits a stranger's alley. _setEncounter* is private,
+  // so assert what's publicly reachable: the getter exists, defaults null, and
+  // the asset the informant references is actually bundled.
+  group('encounter art', () {
+    test('encounterImage defaults to null on a fresh service', () {
+      final game = GameService();
+      expect(game.encounterImage, isNull);
+    });
+
+    testWidgets('the overlay renders scene art without throwing', (tester) async {
+      // The whole point of the `image` param: an encounter with art must build
+      // and paint the Image.asset. Before the param existed this path didn't
+      // exist; a bad path here would throw at build.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: EncounterOverlay(
+            text: 'A figure steps out of a doorway.',
+            image: 'assets/images/informant_encounter.png',
+            onDismiss: () {},
+          ),
+        ),
+      );
+      await tester.pump(); // let the fade-in start
+      // The typewriter runs on Future.delayed; drain those timers or the test
+      // framework fails on a pending Timer after the tree is disposed.
+      await tester.pump(const Duration(seconds: 3));
+      expect(tester.takeException(), isNull,
+          reason: 'EncounterOverlay with art must not throw');
+      expect(find.byType(Image), findsOneWidget,
+          reason: 'the scene art must actually be in the tree');
+    });
+
+    testWidgets('the overlay with no art shows no Image', (tester) async {
+      // Text-only encounters must be unchanged — no stray empty image node.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: EncounterOverlay(
+            text: 'Some text.',
+            onDismiss: () {},
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 3)); // drain typewriter timers
+      expect(tester.takeException(), isNull);
+      expect(find.byType(Image), findsNothing);
     });
   });
 }

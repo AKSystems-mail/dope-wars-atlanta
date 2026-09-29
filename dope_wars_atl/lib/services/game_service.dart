@@ -20,6 +20,10 @@ class GameService extends ChangeNotifier {
   String _encounterText = '';
   List<EncounterChoice>? _encounterChoices;
   bool _showEncounter = false;
+  /// Optional scene art for this encounter. Null for most — only the set-piece
+  /// encounters (the informant) pass one. Cleared in _dissolveEncounter so a
+  /// later text-only encounter can't inherit the previous one's art.
+  String? _encounterImage;
 
   // Ad state
   String? _currentAdAsset;
@@ -36,6 +40,7 @@ class GameService extends ChangeNotifier {
   String get encounterText => _encounterText;
   List<EncounterChoice>? get encounterChoices => _encounterChoices;
   bool get showEncounter => _showEncounter;
+  String? get encounterImage => _encounterImage;
   String? get currentAdAsset => _currentAdAsset;
   bool get showAd => _showAd;
   /// The market here — resolved on arrival, held for the whole visit. Asking for
@@ -374,6 +379,7 @@ class GameService extends ChangeNotifier {
       'A figure steps out of a doorway, hands in pockets.\n\n'
       '“$next. I can get you in.” He looks at your bag.\n'
       '“$feeQty ${product.name}. That is the toll.”',
+      image: 'assets/images/informant_encounter.png',
       [
         if (canPay)
           EncounterChoice(
@@ -643,22 +649,25 @@ class GameService extends ChangeNotifier {
 
   // ---- ENCOUNTER: HELPERS ----
 
-  void _setEncounterBlock(String text, {VoidCallback? onDismiss}) {
+  void _setEncounterBlock(String text, {VoidCallback? onDismiss, String? image}) {
     _encounterText = text;
     _encounterChoices = null;
     _showEncounter = true;
     _onEncounterDismiss = onDismiss;
+    _encounterImage = image;
     if (_state?.soundEnabled ?? true) sound.playEncounter();
     notifyListeners();
   }
 
   VoidCallback? _onEncounterDismiss;
 
-  void _setEncounterWithChoices(String text, List<EncounterChoice> choices) {
+  void _setEncounterWithChoices(String text, List<EncounterChoice> choices,
+      {String? image}) {
     _encounterText = text;
     _encounterChoices = choices;
     _showEncounter = true;
     _onEncounterDismiss = null;
+    _encounterImage = image;
     if (_state?.soundEnabled ?? true) sound.playEncounter();
     notifyListeners();
   }
@@ -668,6 +677,7 @@ class GameService extends ChangeNotifier {
     _encounterChoices = null;
     _showEncounter = false;
     _onEncounterDismiss = null;
+    _encounterImage = null;
   }
 
   /// Callback used by EncounterOverlay for informational-only encounters

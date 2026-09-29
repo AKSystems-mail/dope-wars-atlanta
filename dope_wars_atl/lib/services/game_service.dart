@@ -550,6 +550,10 @@ class GameService extends ChangeNotifier {
   void _runFromPolice() {
     // Run chance based on weapon
     final runChance = _state!.equippedWeapon.killChance * 0.6;
+    // A gun comes out here too — same rule as _fightPolice: fists stay silent.
+    if (_state!.soundEnabled && !_state!.equippedWeapon.isFists) {
+      sound.playWeaponFire();
+    }
     if (Random().nextDouble() <= runChance) {
       _setEncounterBlock(
         '🏃‍♂️ You bolted!\n\nYou disappeared into the Atlanta night.\n\nClose one.',
@@ -572,6 +576,12 @@ class GameService extends ChangeNotifier {
   void _fightPolice() {
     final killChance = _state!.equippedWeapon.killChance;
     final broke = _state!.useDurability(); // consumes durability
+
+    // The crack of a real weapon, but only for one: fists hitting a cop is not
+    // a gunshot, and playing it there would be a lie the player hears.
+    if (_state!.soundEnabled && !_state!.equippedWeapon.isFists) {
+      sound.playWeaponFire();
+    }
 
     if (Random().nextDouble() <= killChance) {
       _setEncounterBlock(

@@ -140,8 +140,8 @@ class _GameRootState extends State<_GameRoot> {
       return BootScreen(
         hasSave: widget.game.hasSave,
         onStart: (mode) async {
-          // null means continue the save already loaded; a mode means start
-          // fresh in it.
+          // null = the CONTINUE button: keep the save already loaded. A mode
+          // name = start fresh in it.
           if (mode != null) {
             final difficulty = widget.game.state?.difficulty ?? 'normal';
             final duration = widget.game.state?.maxDays ?? 30;

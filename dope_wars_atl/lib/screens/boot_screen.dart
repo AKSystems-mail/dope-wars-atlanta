@@ -22,12 +22,15 @@ class BootScreen extends StatefulWidget {
 }
 
 class _BootScreenState extends State<BootScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
+  late AnimationController _pulseCtrl;
+  late AnimationController _blinkCtrl;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scanlineAnimation;
   String _bootText = '';
   bool _ready = false;
+  bool _typing = true;
 
   final String _fullText = '''DOPE WARS ATL
 LOADING...
@@ -52,6 +55,16 @@ PRESS START''';
     _scanlineAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _controller, curve: Curves.linear),
     );
+    // Breathe, so PRESS START reads as live rather than as chrome.
+    _pulseCtrl = AnimationController(
+      duration: const Duration(milliseconds: 1100),
+      vsync: this,
+    )..repeat(reverse: true);
+    // LOADING cursor blink, only while the typewriter is running.
+    _blinkCtrl = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    )..repeat(reverse: true);
     _startTypewriter();
   }
 
@@ -62,17 +75,33 @@ PRESS START''';
       setState(() => _bootText = _fullText.substring(0, i + 1));
     }
     _controller.forward();
-    if (mounted) setState(() => _ready = true);
+    if (mounted) {
+      setState(() {
+        _ready = true;
+        _typing = false;
+      });
+      _blinkCtrl.stop(); // cursor has done its job
+    }
   }
+
+  /// Blinking LOADING cursor. Hidden when idle so the finished screen is calm.
+  TextStyle _blinkStyle() => AppTheme.jersey10(
+        size: 14,
+        color: AppTheme.accentGreen.withValues(alpha: _blinkCtrl.value),
+      );
 
   @override
   void dispose() {
     _controller.dispose();
+    _pulseCtrl.dispose();
+    _blinkCtrl.dispose();
     super.dispose();
   }
 
   /// The mode choice. Two single-player modes, one engine: Classic races the
-  /// calendar, Progressive opens the city as you earn it.
+  /// calendar, Progressive opens the city as you earn it. No CONTINUE here —
+  /// that is its own button on the boot screen, so it shouldn't also be an
+  /// option inside the "pick a mode" sheet.
   Future<void> _promptMode() async {
     final choice = await showModalBottomSheet<String>(
       context: context,
@@ -91,10 +120,10 @@ PRESS START''';
               const SizedBox(height: 16),
               if (widget.hasSave) ...[
                 _ModeButton(
-                  emoji: '▶️',
-                  title: 'CONTINUE',
-                  subtitle: 'Pick up the run you already have',
-                  onTap: () => Navigator.pop(ctx, 'continue'),
+                  emoji: '🗑️',
+                  title: 'START OVER',
+                  subtitle: 'Discard the saved run and choose a fresh mode',
+                  onTap: () => Navigator.pop(ctx, 'new'),
                 ),
                 const SizedBox(height: 10),
               ],
@@ -124,7 +153,7 @@ PRESS START''';
     );
 
     if (choice == null || !mounted) return;
-    widget.onStart(choice == 'continue' ? null : choice);
+    widget.onStart(choice);
   }
 
   @override
@@ -144,14 +173,20 @@ PRESS START''';
               ),
             ),
           ),
-          // Terminal text
+          // Terminal text. While the typewriter runs, LOADING is a blinking
+          // cursor block; the rest of the line is already-spaced text so the
+          // animated part doesn't shift the block around as it changes.
           Center(
             child: Padding(
               padding: const EdgeInsets.all(32),
               child: FadeTransition(
                 opacity: _fadeAnimation,
-                child: Text(
-                  _bootText,
+                child: Text.rich(
+                  TextSpan(children: [
+                    TextSpan(text: _bootText),
+                    if (_typing)
+                      TextSpan(text: '█', style: _blinkStyle()),
+                  ]),
                   style: AppTheme.jersey10(size: 14,
                     color: AppTheme.accentGreen,
                     height: 2.0,
@@ -161,34 +196,91 @@ PRESS START''';
               ),
             ),
           ),
-          // The button. It only appears once the typing finishes, so it is a
-          // deliberate press rather than an accidental one.
+          // The buttons. PRESS START is the primary action and pulses; CONTINUE
+          // sits directly beneath it so the two never read as one control.
           if (_ready)
             Positioned(
-              bottom: 60,
+              bottom: 48,
               left: 0,
               right: 0,
               child: FadeTransition(
                 opacity: _fadeAnimation,
-                child: Center(
-                  child: SizedBox(
-                    width: 240,
-                    child: ElevatedButton(
-                      onPressed: _promptMode,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.accentGreen,
-                        foregroundColor: AppTheme.background,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedBuilder(
+                      animation: _pulseCtrl,
+                      builder: (context, child) {
+                        // Gentle scale + glow, not a flicker.
+                        final t = Curves.easeInOut.transform(_pulseCtrl.value);
+                        return Transform.scale(
+                          scale: 1.0 + 0.04 * t,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(4),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.accentGreen
+                                      .withValues(alpha: 0.25 + 0.35 * t),
+                                  blurRadius: 18 + 14 * t,
+                                  spreadRadius: 1 + 2 * t,
+                                ),
+                              ],
+                            ),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: SizedBox(
+                        width: 240,
+                        child: ElevatedButton(
+                          onPressed: _promptMode,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.accentGreen,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          child: Text(
+                            'PRESS START',
+                            // Explicit colour: AppTheme.jersey10 defaults to
+                            // textPrimary (white), which would win over the
+                            // button's own foreground and be unreadable on the
+                            // green fill.
+                            style: AppTheme.jersey10(
+                                size: 12, color: AppTheme.background),
+                          ),
                         ),
                       ),
-                      child: Text(
-                        widget.hasSave ? 'CONTINUE' : 'PRESS START',
-                        style: AppTheme.jersey10(size: 12),
-                      ),
                     ),
-                  ),
+                    if (widget.hasSave) ...[
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: 240,
+                        child: OutlinedButton(
+                          // Continues straight into the save — no sheet, since
+                          // asking "what mode?" for an existing run is a
+                          // question with no answer.
+                          onPressed: () => widget.onStart(null),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.textPrimary,
+                            side: const BorderSide(
+                                color: AppTheme.textSecondary, width: 2),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          child: Text(
+                            'CONTINUE',
+                            style: AppTheme.jersey10(
+                                size: 12, color: AppTheme.textPrimary),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),

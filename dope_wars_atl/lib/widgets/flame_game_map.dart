@@ -17,12 +17,14 @@ class FlameGameMap extends StatefulWidget {
   final GameService game;
   final String currentLocationId;
   final void Function(String locationId) onLocationTap;
+  final double verticalOffset;
 
   const FlameGameMap({
     super.key,
     required this.game,
     required this.currentLocationId,
     required this.onLocationTap,
+    this.verticalOffset = 0.0,
   });
 
   @override
@@ -94,16 +96,11 @@ class _FlameGameMapState extends State<FlameGameMap> {
     final dy = (_viewport.height / 2 - coords.dy * scale).clamp(minY, 0.0).toDouble();
 
     _transformCtrl.value = Matrix4.identity()
-      ..translate(dx, dy)
+      ..translate(dx, dy + widget.verticalOffset)
       ..scale(scale);
   }
 
   void _onTapUp(TapUpDetails details) {
-    // details.localPosition is ALREADY in map/source-pixel space: this
-    // GestureDetector is the InteractiveViewer's child, so hit-testing has
-    // already undone the pan/zoom transform on the way in. Applying the
-    // inverse transform here (as this used to) double-counted it, so the
-    // computed point landed nowhere near any location and every tap missed.
     final mapPos = details.localPosition;
 
     for (final loc in Location.defaults) {
@@ -120,15 +117,12 @@ class _FlameGameMapState extends State<FlameGameMap> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Measured here (not in initState) because we need the real body size.
         _viewport = Size(constraints.maxWidth, constraints.maxHeight);
         return InteractiveViewer(
           transformationController: _transformCtrl,
           minScale: 0.5,
           maxScale: 3.0,
           constrained: false,
-          // No slack beyond the map's own bounds, so panning can't expose
-          // empty space around the image.
           boundaryMargin: EdgeInsets.zero,
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,

@@ -39,15 +39,31 @@ class MapScreen extends StatelessWidget {
               style: AppTheme.jersey15(size: 12, color: AppTheme.accentGreen),
             ),
             leading: IconButton(
-              icon: const Icon(Icons.close, color: AppTheme.textSecondary),
+              // Back arrow, not a close X: this screen is one step in a flow,
+              // and an X reads as "dismiss" when it just means "go back".
+              icon: const Icon(Icons.arrow_back, color: AppTheme.textSecondary, size: 28),
               onPressed: () => Navigator.pop(context),
+              tooltip: 'Back',
             ),
           ),
-          body: FlameGameMap(
-            game: game,
-            currentLocationId: currentId,
-            onLocationTap: (locationId) =>
-                _onLocationTap(context, game, locationId),
+          body: Container(
+            decoration: BoxDecoration(
+              // Add a subtle vignette/border around the edges of the map
+              // to frame the content and soften the cut.
+              border: Border.all(
+                color: AppTheme.textSecondary.withValues(alpha: 0.1),
+                width: 2,
+              ),
+            ),
+            child: ClipRect(
+              child: FlameGameMap(
+                game: game,
+                currentLocationId: currentId,
+                onLocationTap: (locationId) =>
+                    _onLocationTap(context, game, locationId),
+                verticalOffset: 20.0,
+              ),
+            ),
           ),
         );
       },

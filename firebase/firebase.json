@@ -1,0 +1,9 @@
+{
+  "firestore": {
+    "databases": {
+      "dw-atl-db": {
+        "rules": "firestore.rules"
+      }
+    }
+  }
+}

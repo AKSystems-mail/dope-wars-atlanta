@@ -317,6 +317,55 @@ class _ShopSheetState extends State<_ShopSheet> {
   /// pocket is a completely silent no-op — which reads as "nothing works".
   String? _notice;
 
+  /// Sell the whole bag, but only what THIS hood trades (D8). Iterates the
+  /// shelf rather than the inventory so a product this hood doesn't carry is
+  /// never attempted — sellProduct would just reject it, and the leftover
+  /// message would imply the game lost your stock.
+  ///
+  /// Loops the existing single-product call on purpose: each sale raises heat
+  /// and can drop the MARTA card, and a batched service method would have to
+  /// reproduce all of that. Reuse over a parallel path.
+  Future<void> _sellAll() async {
+    final game = widget.game;
+    var moved = 0;
+    for (final p in game.marketProducts) {
+      final held = game.state?.inventory[p.id] ?? 0;
+      if (held <= 0) continue;
+      if (await game.sellProduct(p.id, held)) moved += held;
+    }
+    if (!mounted) return;
+    setState(() => _notice = moved == 0
+        ? 'Nothing here you can sell.'
+        : 'Sold $moved unit${moved == 1 ? '' : 's'}.');
+  }
+
+  /// Fill whatever bag space is left, cheapest unit price first — more units
+  /// per dollar, and it stops the moment the bag or the wallet runs out rather
+  /// than burning the remainder on a product the row-level MAX already covers.
+  Future<void> _buyAll() async {
+    final game = widget.game;
+    // Cheapest first. Ties broken by id so the result is deterministic.
+    final shelf = [...game.marketProducts]
+      ..sort((a, b) {
+        final c = game.getBuyPrice(a).compareTo(game.getBuyPrice(b));
+        return c != 0 ? c : a.id.compareTo(b.id);
+      });
+    var bought = 0;
+    for (final p in shelf) {
+      final s = game.state!;
+      if (s.remainingSpace <= 0 || s.cash <= 0) break;
+      final price = game.getBuyPrice(p);
+      if (price <= 0) continue;
+      final qty = math.min(s.remainingSpace, s.cash ~/ price);
+      if (qty <= 0) continue;
+      if (await game.buyProduct(p, qty)) bought += qty;
+    }
+    if (!mounted) return;
+    setState(() => _notice = bought == 0
+        ? 'No room or no cash to buy anything here.'
+        : 'Bought $bought unit${bought == 1 ? '' : 's'}.');
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = widget.game.state!;
@@ -338,6 +387,28 @@ class _ShopSheetState extends State<_ShopSheet> {
               'Cash: \$${state.cash} | Bag: ${state.inventoryCount}/${state.bagCapacity}',
               style: AppTheme.jersey10(size: 10, color: AppTheme.accentGreen),
             ),
+          ),
+          // Whole-bag actions. These aren't row-level: a run ends in "sell the
+          // 40 units I've been carrying", which is one decision, not eight.
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: NeonActionButton(
+                  label: 'BUY ALL',
+                  onPressed: _buyAll,
+                  neonColor: AppTheme.accentGreen,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: NeonActionButton(
+                  label: 'SELL ALL',
+                  onPressed: _sellAll,
+                  neonColor: AppTheme.accentPink,
+                ),
+              ),
+            ],
           ),
           // Rows are taller now (held count + qty stepper), and the sheet is
           // already isScrollControlled — without a scroll the bottom rows and

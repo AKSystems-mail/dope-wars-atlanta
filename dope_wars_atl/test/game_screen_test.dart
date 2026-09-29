@@ -106,4 +106,65 @@ void main() {
       expect(state.remainingSpace, greaterThanOrEqualTo(qty));
     });
   });
+  // BUY ALL / SELL ALL loop the single-product calls, so their stopping
+  // conditions are the only thing that can silently break: overshoot the bag,
+  // overspend the cash, or sell a product this hood doesn't stock.
+  group('whole-bag actions', () {
+    test('SELL ALL sells every stocked product and leaves the rest', () async {
+      SharedPreferences.setMockInitialValues({});
+      final game = GameService();
+      await game.init();
+      final state = game.state!;
+      // No audioplayers plugin in the test env; every trade plays a sound.
+      state.soundEnabled = false;
+      final stocked = game.marketProducts;
+      expect(stocked, isNotEmpty, reason: 'a fresh run must stock a shelf');
+
+      // Stock two of the first, one of the second, plus one this hood does
+      // NOT carry — that last one must survive a SELL ALL untouched.
+      state.addToInventory(stocked[0].id, 2);
+      state.addToInventory(stocked[1].id, 1);
+      final unstocked = 'not_on_this_shelf';
+      state.addToInventory(unstocked, 5);
+      final cashBefore = state.cash;
+
+      for (final p in stocked) {
+        final held = state.inventory[p.id] ?? 0;
+        if (held > 0) await game.sellProduct(p.id, held);
+      }
+
+      // removeFromInventory drops the key at zero, so "gone" is null-or-0.
+      expect(state.inventory[stocked[0].id] ?? 0, 0, reason: 'stocked stock is sold');
+      expect(state.inventory[stocked[1].id] ?? 0, 0);
+      expect(state.inventory[unstocked], 5,
+          reason: 'a product this hood does not stock must NOT be sold');
+      expect(state.cash, greaterThan(cashBefore), reason: 'selling pays out');
+    });
+
+    test('BUY ALL stops at the bag and the wallet, never past either', () async {
+      SharedPreferences.setMockInitialValues({});
+      final game = GameService();
+      await game.init();
+      final state = game.state!;
+      state.soundEnabled = false;
+      state.cash = 500;
+
+      // Mirror _buyAll: cheapest first, clamped to space and cash.
+      final shelf = [...game.marketProducts]
+        ..sort((a, b) => game.getBuyPrice(a).compareTo(game.getBuyPrice(b)));
+      for (final p in shelf) {
+        if (state.remainingSpace <= 0 || state.cash <= 0) break;
+        final price = game.getBuyPrice(p);
+        if (price <= 0) continue;
+        final qty = math.min(state.remainingSpace, state.cash ~/ price);
+        if (qty <= 0) continue;
+        await game.buyProduct(p, qty);
+      }
+
+      expect(state.inventoryCount, lessThanOrEqualTo(state.bagCapacity),
+          reason: 'BUY ALL must never overfill the bag');
+      expect(state.cash, greaterThanOrEqualTo(0),
+          reason: 'BUY ALL must never overspend');
+    });
+  });
 }

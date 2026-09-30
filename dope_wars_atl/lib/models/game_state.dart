@@ -20,6 +20,9 @@ class GameState {
   int totalDaysPassed;
   String difficulty; // 'easy', 'normal', 'hard'
   bool soundEnabled;
+  /// Music is its own switch: muting the SFX must not silence the soundtrack,
+  /// and a save written before this field loads as music-on via the default.
+  bool musicEnabled;
 
   /// 'classic' — every hood open, race the calendar for net worth.
   /// 'progressive' — the city unlocks as you earn it, and owning it is the win.
@@ -130,6 +133,7 @@ class GameState {
     this.totalDaysPassed = 0,
     this.difficulty = 'normal',
     this.soundEnabled = true,
+    this.musicEnabled = true,
     this.mode = 'classic',
     Set<String>? unlockedHoods,
     this.heat = 0,
@@ -654,6 +658,7 @@ class GameState {
         'totalDaysPassed': totalDaysPassed,
         'difficulty': difficulty,
         'soundEnabled': soundEnabled,
+        'musicEnabled': musicEnabled,
         'gameHour': gameHour,
         'mode': mode,
         'unlockedHoods': unlockedHoods.toList(),
@@ -692,6 +697,7 @@ class GameState {
         totalDaysPassed: json['totalDaysPassed'] as int? ?? 0,
         difficulty: json['difficulty'] as String? ?? 'normal',
         soundEnabled: json['soundEnabled'] as bool? ?? true,
+        musicEnabled: json['musicEnabled'] as bool? ?? true,
         gameHour: json['gameHour'] as int? ?? 8,
         // Everything below is absent on a save written before Progressive
         // existed. The defaults put such a save in Classic with every hood

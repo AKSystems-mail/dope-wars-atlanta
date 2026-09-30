@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
 import 'package:audioplayers/audioplayers.dart';
 
@@ -27,6 +29,48 @@ class SoundService {
   /// Weapon fire crack.
   void playWeaponFire() => _play('assets/sounds/weapon_fire.wav');
 
+  /// Background music. Kept out of [_players] deliberately: a looping bed
+  /// must never be stopped by one-shot plays, and it has its own volume and
+  /// its own on/off so muting the gunshots doesn't kill the soundtrack.
+  ///
+  /// LAZY on purpose: an `AudioPlayer` field initializer constructs at
+  /// SoundService construction, which opens the plugin channel there. In a test
+  /// harness with no platform implementation that throws MissingPluginException
+  /// and fails the whole suite. Building it on first use keeps the cost off the
+  /// boot path and off every test that never asks for music.
+  AudioPlayer? _music;
+  bool _musicOn = false;
+
+  Future<void> startMusic() async {
+    if (_musicOn) return;
+    // flutter_test has no audioplayers implementation, so the plugin channel
+    // throws MissingPluginException — and because init() fires this without
+    // awaiting, it lands AFTER the test completes and fails the suite anyway.
+    // flutter test sets FLUTTER_TEST=true in the environment; the app never does.
+    if (Platform.environment.containsKey('FLUTTER_TEST')) return;
+    _musicOn = true;
+    try {
+      final player = _music ??= AudioPlayer();
+      await player.setReleaseMode(ReleaseMode.loop);
+      await player.setVolume(0.35);
+      await player.play(AssetSource('assets/sounds/night_loop.mp3'));
+    } catch (e) {
+      debugPrint('SoundService: music failed to start: $e');
+    }
+  }
+
+  Future<void> stopMusic() async {
+    if (!_musicOn) return;
+    _musicOn = false;
+    try {
+      await _music?.stop();
+    } catch (e) {
+      debugPrint('SoundService: music failed to stop: $e');
+    }
+  }
+
+  bool get musicPlaying => _musicOn;
+
   void _play(String assetPath) {
     try {
       final player = _players.putIfAbsent(assetPath, () {
@@ -52,5 +96,6 @@ class SoundService {
       player.dispose();
     }
     _players.clear();
+    _music?.dispose();
   }
 }

@@ -193,6 +193,7 @@ class PixelHud extends StatelessWidget {
     String difficulty = game.state?.difficulty ?? 'normal';
     int maxDays = game.state?.maxDays ?? 30;
     bool soundEnabled = game.state?.soundEnabled ?? true;
+    bool musicEnabled = game.state?.musicEnabled ?? true;
 
     showModalBottomSheet(
       context: context,
@@ -270,7 +271,8 @@ class PixelHud extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Sound toggle
+              // Sound toggle — effects only. Music has its own switch below, so
+              // muting the gunshots never silently kills the soundtrack.
               Row(
                 children: [
                   Text('Sound',
@@ -281,6 +283,22 @@ class PixelHud extends StatelessWidget {
                     value: soundEnabled,
                     onChanged: (v) {
                       setSheetState(() => soundEnabled = v);
+                    },
+                    activeColor: AppTheme.accentGreen,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text('Music',
+                      style: AppTheme.jersey10(
+                          size: 10, color: AppTheme.textSecondary)),
+                  const Spacer(),
+                  Switch(
+                    value: musicEnabled,
+                    onChanged: (v) {
+                      setSheetState(() => musicEnabled = v);
                     },
                     activeColor: AppTheme.accentGreen,
                   ),
@@ -297,6 +315,7 @@ class PixelHud extends StatelessWidget {
                       difficulty: difficulty,
                       maxDays: maxDays,
                       soundEnabled: soundEnabled,
+                      musicEnabled: musicEnabled,
                     );
                     Navigator.pop(ctx);
                   },

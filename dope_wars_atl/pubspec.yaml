@@ -1,7 +1,7 @@
 name: dope_wars_atl
 description: "Dope Wars - Atlanta. A drug trade empire game set in Atlanta."
 publish_to: 'none'
-version: 1.0.0+2
+version: 1.0.0+3
 
 environment:
   sdk: ^3.7.2

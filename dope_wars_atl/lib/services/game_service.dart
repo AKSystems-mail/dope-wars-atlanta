@@ -75,6 +75,15 @@ class GameService extends ChangeNotifier {
       _state = GameState();
     }
 
+    // Start the bed once a run is loaded, and respect the saved preference.
+    // Deliberately NOT awaited: `init()` is on the boot critical path, and a
+    // player that blocks (no audio device, a test harness with no platform
+    // channel) would then hang the whole game behind a music track. startMusic
+    // swallows its own errors, so a failed start is silent and the game plays.
+    if (_state!.musicEnabled) {
+      sound.startMusic();
+    }
+
     _loading = false;
     notifyListeners();
   }
@@ -107,14 +116,30 @@ class GameService extends ChangeNotifier {
     required String difficulty,
     required int maxDays,
     required bool soundEnabled,
+    bool? musicEnabled,
   }) async {
     if (_state == null) return;
     _state!.difficulty = difficulty;
     _state!.maxDays = maxDays;
     _state!.soundEnabled = soundEnabled;
     if (!soundEnabled) sound.stopAll();
+    if (musicEnabled != null && musicEnabled != _state!.musicEnabled) {
+      await setMusicEnabled(musicEnabled);
+    }
     notifyListeners();
     await autoSave();
+  }
+
+  /// Music is independent of the SFX switch: turning the sound effects off
+  /// stops the effects only, and this is what the music toggle drives.
+  Future<void> setMusicEnabled(bool on) async {
+    if (_state == null) return;
+    _state!.musicEnabled = on;
+    if (on) {
+      await sound.startMusic();
+    } else {
+      await sound.stopMusic();
+    }
   }
 
   // ---- LOCATION / TRAVEL ----

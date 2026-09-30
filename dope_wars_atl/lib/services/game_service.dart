@@ -140,6 +140,18 @@ class GameService extends ChangeNotifier {
     } else {
       await sound.stopMusic();
     }
+    // The toggle acts immediately, so it must also survive an app kill.
+    notifyListeners();
+    await autoSave();
+  }
+
+  /// Sound effects on/off. Same immediate-apply contract as the music toggle.
+  Future<void> setSoundEnabled(bool on) async {
+    if (_state == null) return;
+    _state!.soundEnabled = on;
+    if (!on) sound.stopAll();
+    notifyListeners();
+    await autoSave();
   }
 
   // ---- LOCATION / TRAVEL ----

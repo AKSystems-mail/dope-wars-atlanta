@@ -231,8 +231,18 @@ class PixelHud extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: NeonBorderButton(
                         label: GameState.difficultyDisplayName(d),
+                        // Every control applies and saves on tap. There is no
+                        // pending state to lose by tapping Cancel or swiping the
+                        // sheet away, which is what made the SAVE button feel
+                        // load-bearing.
                         onPressed: () {
                           setSheetState(() => difficulty = d);
+                          game.updateSettings(
+                            difficulty: d,
+                            maxDays: maxDays,
+                            soundEnabled: soundEnabled,
+                            musicEnabled: musicEnabled,
+                          );
                         },
                         neonColor: color,
                         selected: selected,
@@ -260,6 +270,12 @@ class PixelHud extends StatelessWidget {
                         label: '${d}d',
                         onPressed: () {
                           setSheetState(() => maxDays = d);
+                          game.updateSettings(
+                            difficulty: difficulty,
+                            maxDays: d,
+                            soundEnabled: soundEnabled,
+                            musicEnabled: musicEnabled,
+                          );
                         },
                         neonColor: color,
                         selected: selected,
@@ -281,8 +297,9 @@ class PixelHud extends StatelessWidget {
                   const Spacer(),
                   Switch(
                     value: soundEnabled,
-                    onChanged: (v) {
+                    onChanged: (v) async {
                       setSheetState(() => soundEnabled = v);
+                      await game.setSoundEnabled(v);
                     },
                     activeColor: AppTheme.accentGreen,
                   ),
@@ -316,12 +333,8 @@ class PixelHud extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    game.updateSettings(
-                      difficulty: difficulty,
-                      maxDays: maxDays,
-                      soundEnabled: soundEnabled,
-                      musicEnabled: musicEnabled,
-                    );
+                    // Nothing to commit: each control above already applied
+                    // and saved when tapped. This just closes the sheet.
                     Navigator.pop(ctx);
                   },
                   style: ElevatedButton.styleFrom(

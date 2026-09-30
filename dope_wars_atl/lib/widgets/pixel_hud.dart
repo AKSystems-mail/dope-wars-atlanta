@@ -297,8 +297,13 @@ class PixelHud extends StatelessWidget {
                   const Spacer(),
                   Switch(
                     value: musicEnabled,
-                    onChanged: (v) {
+                    // Acts immediately, like the toggle on any phone. Saving
+                    // separately meant flipping it appeared to do nothing
+                    // until you found SAVE, which read as a broken switch.
+                    // setMusicEnabled persists, so SAVE is still correct after.
+                    onChanged: (v) async {
                       setSheetState(() => musicEnabled = v);
+                      await game.setMusicEnabled(v);
                     },
                     activeColor: AppTheme.accentGreen,
                   ),
@@ -325,7 +330,12 @@ class PixelHud extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: Text('SAVE',
-                      style: AppTheme.jersey10(size: 10)),
+                      // Same trap PRESS START had: jersey10 defaults to
+                      // textPrimary (white), which overrides the button's own
+                      // foreground and leaves white on bright green. Name the
+                      // background colour explicitly.
+                      style: AppTheme.jersey10(
+                          size: 10, color: AppTheme.background)),
                 ),
               ),
               const SizedBox(height: 8),

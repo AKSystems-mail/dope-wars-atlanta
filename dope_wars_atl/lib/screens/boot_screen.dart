@@ -31,6 +31,9 @@ class _BootScreenState extends State<BootScreen>
   String _bootText = '';
   bool _ready = false;
   bool _typing = true;
+  // The canvas line and the button must never read as the same control. The
+  // terminal text used to end in PRESS START and the button beneath it was
+  // also PRESS START, so a finished boot screen showed the words twice.
 
   final String _fullText = '''DOPE WARS ATL
 LOADING...
@@ -39,7 +42,7 @@ v1.0.0
 ATLANTA, GA
 EST. 2026
 
-PRESS START''';
+INSERT COIN''';
 
   @override
   void initState() {
@@ -55,7 +58,7 @@ PRESS START''';
     _scanlineAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _controller, curve: Curves.linear),
     );
-    // Breathe, so PRESS START reads as live rather than as chrome.
+    // Breathe, so the PRESS START button reads as live rather than as chrome.
     _pulseCtrl = AnimationController(
       duration: const Duration(milliseconds: 1100),
       vsync: this,

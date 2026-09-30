@@ -52,9 +52,18 @@ class SoundService {
     try {
       final player = _music ??= AudioPlayer();
       await player.setReleaseMode(ReleaseMode.loop);
-      await player.setVolume(0.35);
+      // 0.6, not 0.35: the loop sits around -17 LUFS and is played under a
+      // phone speaker, where a low bed is simply inaudible. It must still sit
+      // under the SFX (which are at 0.5 with far more transient energy), so it
+      // does not dominate.
+      await player.setVolume(0.6);
       await player.play(AssetSource('assets/sounds/night_loop.mp3'));
     } catch (e) {
+      // Release the latch on failure. Setting _musicOn before the play means a
+      // failed start would otherwise leave the service believing music is
+      // running: stopMusic would no-op and every later startMusic would return
+      // early, so the toggle could never retry a start that failed once.
+      _musicOn = false;
       debugPrint('SoundService: music failed to start: $e');
     }
   }

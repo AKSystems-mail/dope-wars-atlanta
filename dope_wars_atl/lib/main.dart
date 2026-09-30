@@ -304,7 +304,10 @@ class _GameOverOverlayState extends State<_GameOverOverlay>
                     ),
                     child: Text(
                       keepPlaying ? 'KEEP GOING' : 'NEW GAME',
-                      style: AppTheme.jersey10(size: 12),
+                      // jersey10 defaults to white, which beats the button's
+                      // own foreground — same white-on-green as SAVE.
+                      style: AppTheme.jersey10(
+                          size: 12, color: AppTheme.background),
                     ),
                   ),
                 ),

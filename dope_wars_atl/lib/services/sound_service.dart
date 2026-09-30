@@ -43,21 +43,42 @@ class SoundService {
 
   Future<void> startMusic() async {
     if (_musicOn) return;
-    // flutter_test has no audioplayers implementation, so the plugin channel
+    // flutter_test has no audioplayers implementations, so the plugin channel
     // throws MissingPluginException — and because init() fires this without
     // awaiting, it lands AFTER the test completes and fails the suite anyway.
     // flutter test sets FLUTTER_TEST=true in the environment; the app never does.
     if (Platform.environment.containsKey('FLUTTER_TEST')) return;
     _musicOn = true;
     try {
-      final player = _music ??= AudioPlayer();
+      final player = _music ??= AudioPlayer(playerId: 'music');
+      // Configure the audio context BEFORE the first play. On Android
+      // audioplayers otherwise picks a default focus/stream that a long
+      // looping bed can end up muted on, while short one-shots still work —
+      // which is exactly the pattern we were seeing.
+      await AudioPlayer.global.setAudioContext(
+        AudioContext(
+          android: const AudioContextAndroid(
+            isSpeakerphoneOn: false,
+            stayAwake: false,
+            contentType: AndroidContentType.music,
+            usageType: AndroidUsageType.media,
+            audioFocus: AndroidAudioFocus.gain,
+          ),
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+            options: const {AVAudioSessionOptions.mixWithOthers},
+          ),
+        ),
+      );
       await player.setReleaseMode(ReleaseMode.loop);
-      // 0.6, not 0.35: the loop sits around -17 LUFS and is played under a
-      // phone speaker, where a low bed is simply inaudible. It must still sit
-      // under the SFX (which are at 0.5 with far more transient energy), so it
-      // does not dominate.
-      await player.setVolume(0.6);
-      await player.play(AssetSource('assets/sounds/night_loop.mp3'));
+      // One call, volume as an argument. The SFX path plays a single
+      // play(AssetSource) and those are audible; the multi-call
+      // setReleaseMode -> setVolume -> play sequence on a fresh player is what
+      // music was doing, and it never made a sound.
+      await player.play(
+        AssetSource('assets/sounds/night_loop.mp3'),
+        volume: 0.8,
+      );
     } catch (e) {
       // Release the latch on failure. Setting _musicOn before the play means a
       // failed start would otherwise leave the service believing music is

@@ -48,53 +48,43 @@ class PixelHud extends StatelessWidget {
           if (state.isProgressive) ...[
             _HudItem(
               label: 'HEAT ${state.heatLabel.toUpperCase()}',
-              color: state.heatLabel == 'Hot'
-                  ? AppTheme.danger
-                  : (state.heatLabel == 'Warm'
-                      ? AppTheme.gold
-                      : AppTheme.textSecondary),
+              color:
+                  state.heatLabel == 'Hot'
+                      ? AppTheme.danger
+                      : (state.heatLabel == 'Warm'
+                          ? AppTheme.gold
+                          : AppTheme.textSecondary),
             ),
             const SizedBox(width: 12),
           ],
 
           // Time
-          _HudItem(
-            label: timeLabel,
-            color: AppTheme.gold,
-          ),
+          _HudItem(label: timeLabel, color: AppTheme.gold),
 
           // Bank balance (only meaningful once you've used the Bank)
           if (state.bankBalance > 0) ...[
-            _HudItem(
-              label: 'B\$${state.bankBalance}',
-              color: AppTheme.midtown,
-            ),
+            _HudItem(label: 'B\$${state.bankBalance}', color: AppTheme.midtown),
             const SizedBox(width: 12),
           ],
 
           // Cash
-          _HudItem(
-            label: '\$${state.cash}',
-            color: AppTheme.gold,
-          ),
+          _HudItem(label: '\$${state.cash}', color: AppTheme.gold),
 
           const SizedBox(width: 12),
 
           // Debt
           if (state.debt > 0)
-            _HudItem(
-              label: '\$${state.debt}',
-              color: AppTheme.danger,
-            ),
+            _HudItem(label: '\$${state.debt}', color: AppTheme.danger),
 
           if (state.debt > 0) const SizedBox(width: 12),
 
           // Bag space
           _HudItem(
             label: '${state.bagUsed}/${state.bagCapacity}',
-            color: state.bagUsed >= state.bagCapacity * 0.8
-                ? AppTheme.gold
-                : AppTheme.textSecondary,
+            color:
+                state.bagUsed >= state.bagCapacity * 0.8
+                    ? AppTheme.gold
+                    : AppTheme.textSecondary,
           ),
 
           const SizedBox(width: 8),
@@ -125,67 +115,96 @@ class PixelHud extends StatelessWidget {
       context: context,
       backgroundColor: AppTheme.card,
       shape: const RoundedRectangleBorder(),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('MENU',
-                style: AppTheme.jersey15(
-                    size: 16, color: AppTheme.accentGreen)),
-            const SizedBox(height: 24),
-            ListTile(
-              leading: const Text('⚙️', style: TextStyle(fontSize: 22)),
-              title: Text('Settings',
-                  style: AppTheme.jersey15(size: 16, color: AppTheme.textPrimary)),
-              onTap: () {
-                Navigator.pop(ctx);
-                // Settings sheet opens from GameScreen via callback
-                if (game.state != null) {
-                  _showSettings(context, game);
-                }
-              },
-            ),
-            ListTile(
-              leading: const Text('🔄', style: TextStyle(fontSize: 22)),
-              title: Text('New Game',
-                  style: AppTheme.jersey15(size: 16, color: AppTheme.textPrimary)),
-              onTap: () {
-                Navigator.pop(ctx);
-                showDialog(
-                  context: context,
-                  builder: (dCtx) => AlertDialog(
-                    backgroundColor: AppTheme.card,
-                    title: Text('Start Over?',
-                        style: AppTheme.jersey15(
-                            size: 16, color: AppTheme.accentPink)),
-                    content: Text(
-                        'This will wipe your current save.',
-                        style: AppTheme.jersey15(
-                            size: 14, color: AppTheme.textSecondary)),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(dCtx),
-                        child: Text('Cancel',
-                            style: AppTheme.jersey10(size: 10)),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(dCtx);
-                          game.newGame();
-                        },
-                        child: Text('Confirm',
-                            style: AppTheme.jersey10(
-                                size: 10, color: AppTheme.danger)),
-                      ),
-                    ],
+      builder:
+          (ctx) => Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'MENU',
+                  style: AppTheme.jersey15(
+                    size: 16,
+                    color: AppTheme.accentGreen,
                   ),
-                );
-              },
+                ),
+                const SizedBox(height: 24),
+                ListTile(
+                  leading: const Text('⚙️', style: TextStyle(fontSize: 22)),
+                  title: Text(
+                    'Settings',
+                    style: AppTheme.jersey15(
+                      size: 16,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    // Settings sheet opens from GameScreen via callback
+                    if (game.state != null) {
+                      _showSettings(context, game);
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Text('🔄', style: TextStyle(fontSize: 22)),
+                  title: Text(
+                    'New Game',
+                    style: AppTheme.jersey15(
+                      size: 16,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    showDialog(
+                      context: context,
+                      builder:
+                          (dCtx) => AlertDialog(
+                            backgroundColor: AppTheme.card,
+                            title: Text(
+                              'Start Over?',
+                              style: AppTheme.jersey15(
+                                size: 16,
+                                color: AppTheme.accentPink,
+                              ),
+                            ),
+                            content: Text(
+                              'This will wipe your current save.',
+                              style: AppTheme.jersey15(
+                                size: 14,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(dCtx),
+                                child: Text(
+                                  'Cancel',
+                                  style: AppTheme.jersey10(size: 10),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(dCtx);
+                                  game.newGame();
+                                },
+                                child: Text(
+                                  'Confirm',
+                                  style: AppTheme.jersey10(
+                                    size: 10,
+                                    color: AppTheme.danger,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                    );
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -199,173 +218,203 @@ class PixelHud extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppTheme.card,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Text('SETTINGS',
-                    style: AppTheme.jersey15(
-                        size: 20, color: AppTheme.accentGreen)),
-              ),
-              const SizedBox(height: 24),
+      builder:
+          (ctx) => StatefulBuilder(
+            builder: (ctx, setSheetState) => Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Center(
+                              child: Text(
+                                'SETTINGS',
+                                style: AppTheme.jersey15(
+                                  size: 20,
+                                  color: AppTheme.accentGreen,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
 
-              // Difficulty
-              Text('Difficulty',
-                  style: AppTheme.jersey10(
-                      size: 10, color: AppTheme.textSecondary)),
-              const SizedBox(height: 8),
-              Row(
-                children: ['easy', 'normal', 'hard'].map((d) {
-                  final selected = difficulty == d;
-                  final color = d == 'easy'
-                      ? AppTheme.accentGreen
-                      : d == 'normal'
-                          ? AppTheme.gold
-                          : AppTheme.danger;
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: NeonBorderButton(
-                        label: GameState.difficultyDisplayName(d),
-                        // Every control applies and saves on tap. There is no
-                        // pending state to lose by tapping Cancel or swiping the
-                        // sheet away, which is what made the SAVE button feel
-                        // load-bearing.
-                        onPressed: () {
-                          setSheetState(() => difficulty = d);
-                          game.updateSettings(
-                            difficulty: d,
-                            maxDays: maxDays,
-                            soundEnabled: soundEnabled,
-                            musicEnabled: musicEnabled,
-                          );
-                        },
-                        neonColor: color,
-                        selected: selected,
-                        fontSize: 10,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
+                            // Difficulty
+                            Text(
+                              'Difficulty',
+                              style: AppTheme.jersey10(
+                                size: 10,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children:
+                                  ['easy', 'normal', 'hard'].map((d) {
+                                    final selected = difficulty == d;
+                                    final color =
+                                        d == 'easy'
+                                            ? AppTheme.accentGreen
+                                            : d == 'normal'
+                                            ? AppTheme.gold
+                                            : AppTheme.danger;
+                                    return Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                        ),
+                                        child: NeonBorderButton(
+                                          label:
+                                              GameState.difficultyDisplayName(
+                                                d,
+                                              ),
+                                          // Every control applies and saves on tap. There is no
+                                          // pending state to lose by tapping Cancel or swiping the
+                                          // sheet away, which is what made the SAVE button feel
+                                          // load-bearing.
+                                          onPressed: () {
+                                            setSheetState(() => difficulty = d);
+                                            game.updateSettings(
+                                              difficulty: d,
+                                              maxDays: maxDays,
+                                              soundEnabled: soundEnabled,
+                                              musicEnabled: musicEnabled,
+                                            );
+                                          },
+                                          neonColor: color,
+                                          selected: selected,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                            ),
+                            const SizedBox(height: 16),
 
-              // Game Duration
-              Text('Game Duration',
-                  style: AppTheme.jersey10(
-                      size: 10, color: AppTheme.textSecondary)),
-              const SizedBox(height: 8),
-              Row(
-                children: [30, 60, 90].map((d) {
-                  final selected = maxDays == d;
-                  final color = AppTheme.accentPink;
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: NeonBorderButton(
-                        label: '${d}d',
-                        onPressed: () {
-                          setSheetState(() => maxDays = d);
-                          game.updateSettings(
-                            difficulty: difficulty,
-                            maxDays: d,
-                            soundEnabled: soundEnabled,
-                            musicEnabled: musicEnabled,
-                          );
-                        },
-                        neonColor: color,
-                        selected: selected,
-                        fontSize: 10,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
+                            // Game Duration
+                            Text(
+                              'Game Duration',
+                              style: AppTheme.jersey10(
+                                size: 10,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children:
+                                  [30, 60, 90].map((d) {
+                                    final selected = maxDays == d;
+                                    final color = AppTheme.accentPink;
+                                    return Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                        ),
+                                        child: NeonBorderButton(
+                                          // "30D" read as "300" — a pixel-D next to a zero is
+                                          // a zero. Spell it out and give it room to breathe.
+                                          label: '$d Days',
+                                          onPressed: () {
+                                            setSheetState(() => maxDays = d);
+                                            game.updateSettings(
+                                              difficulty: difficulty,
+                                              maxDays: d,
+                                              soundEnabled: soundEnabled,
+                                              musicEnabled: musicEnabled,
+                                            );
+                                          },
+                                          neonColor: color,
+                                          selected: selected,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                            ),
+                            const SizedBox(height: 16),
 
-              // Sound toggle — effects only. Music has its own switch below, so
-              // muting the gunshots never silently kills the soundtrack.
-              Row(
-                children: [
-                  Text('Sound',
-                      style: AppTheme.jersey10(
-                          size: 10, color: AppTheme.textSecondary)),
-                  const Spacer(),
-                  Switch(
-                    value: soundEnabled,
-                    onChanged: (v) async {
-                      setSheetState(() => soundEnabled = v);
-                      await game.setSoundEnabled(v);
-                    },
-                    activeColor: AppTheme.accentGreen,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Text('Music',
-                      style: AppTheme.jersey10(
-                          size: 10, color: AppTheme.textSecondary)),
-                  const Spacer(),
-                  Switch(
-                    value: musicEnabled,
-                    // Acts immediately, like the toggle on any phone. Saving
-                    // separately meant flipping it appeared to do nothing
-                    // until you found SAVE, which read as a broken switch.
-                    // setMusicEnabled persists, so SAVE is still correct after.
-                    onChanged: (v) async {
-                      setSheetState(() => musicEnabled = v);
-                      await game.setMusicEnabled(v);
-                    },
-                    activeColor: AppTheme.accentGreen,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
+                            // Sound toggle — effects only. Music has its own switch below, so
+                            // muting the gunshots never silently kills the soundtrack.
+                            Row(
+                              children: [
+                                Text(
+                                  'Sound',
+                                  style: AppTheme.jersey10(
+                                    size: 10,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Switch(
+                                  value: soundEnabled,
+                                  onChanged: (v) async {
+                                    setSheetState(() => soundEnabled = v);
+                                    await game.setSoundEnabled(v);
+                                  },
+                                  activeColor: AppTheme.accentGreen,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Text(
+                                  'Music',
+                                  style: AppTheme.jersey10(
+                                    size: 10,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Switch(
+                                  value: musicEnabled,
+                                  // Acts immediately, like the toggle on any phone. Saving
+                                  // separately meant flipping it appeared to do nothing
+                                  // until you found SAVE, which read as a broken switch.
+                                  // setMusicEnabled persists, so SAVE is still correct after.
+                                  onChanged: (v) async {
+                                    setSheetState(() => musicEnabled = v);
+                                    await game.setMusicEnabled(v);
+                                  },
+                                  activeColor: AppTheme.accentGreen,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
 
-              // Save button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Nothing to commit: each control above already applied
-                    // and saved when tapped. This just closes the sheet.
-                    Navigator.pop(ctx);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.accentGreen,
-                    foregroundColor: AppTheme.background,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: Text('SAVE',
-                      // Same trap PRESS START had: jersey10 defaults to
-                      // textPrimary (white), which overrides the button's own
-                      // foreground and leaves white on bright green. Name the
-                      // background colour explicitly.
-                      style: AppTheme.jersey10(
-                          size: 10, color: AppTheme.background)),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Center(
-                child: TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: Text('Cancel',
-                      style: AppTheme.jersey10(
-                          size: 10, color: AppTheme.textSecondary)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+                            // Every control above already applied and saved when tapped, so
+                            // there is nothing to commit here. SAVE and Cancel both used to
+                            // sit here doing the same thing — the only difference was that
+                            // Cancel threw your changes away, which is never what anyone
+                            // wants from a settings sheet. One CLOSE, no dead choice.
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.accentGreen,
+                                  foregroundColor: AppTheme.background,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                ),
+                                child: Text(
+                                  'CLOSE',
+                                  // Same trap PRESS START had: jersey10 defaults to
+                                  // textPrimary (white), which overrides the button's own
+                                  // foreground and leaves white on bright green. Name the
+                                  // background colour explicitly.
+                                  style: AppTheme.jersey10(
+                                    size: 12,
+                                    color: AppTheme.background,
+                                  ),
+                                ),
+                              ),
+                              ),
+                              ],
+                              ),
+                              ),
+                              ),
+                              );
+                              }
 
   String _formatTime(int hour) {
     final amPm = hour >= 12 ? 'PM' : 'AM';
@@ -378,19 +427,10 @@ class _HudItem extends StatelessWidget {
   final String label;
   final Color color;
 
-  const _HudItem({
-    required this.label,
-    required this.color,
-  });
+  const _HudItem({required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: AppTheme.jersey10(
-        size: 11,
-        color: color,
-      ),
-    );
+    return Text(label, style: AppTheme.jersey10(size: 11, color: color));
   }
 }

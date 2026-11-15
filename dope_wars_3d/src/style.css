@@ -173,12 +173,11 @@ body {
   padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
   background: linear-gradient(to top, rgba(10, 8, 16, 0.98), rgba(10, 8, 16, 0.6));
   border-top: 1px solid rgba(0, 255, 157, 0.18);
-  overflow-x: auto;
-  scrollbar-width: none;
+  /* wrap instead of scrolling sideways: the sixth button used to hide off the
+     right edge with nothing indicating there was more */
+  flex-wrap: wrap;
+  justify-content: center;
   z-index: 5;
-}
-#bar::-webkit-scrollbar {
-  display: none;
 }
 
 /* NeonBorderButton: dark panel, thin neon border, press shifts 2px */

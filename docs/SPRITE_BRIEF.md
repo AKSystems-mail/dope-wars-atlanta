@@ -23,21 +23,39 @@ without looking pasted on.
 
 ---
 
-## 2. Established style, from the art already in the repo
+## 2. What actually exists (audited, not assumed)
 
-| Sprite | Size | Notes |
-|---|---|---|
-| Hood buildings (`buckhead.png`, `midtown.png`, …) | 224×208 | RGB, black background, **desaturated grey** (143,143,142 / 117,117,116). The colour comes from the map node ring, never from the building. |
-| Small hood (`*_sm.png`) | 56×52 | same art, pre-shrunk — do not resize at runtime |
-| Small icons (`loc_*.png`) | 48×48 | |
-| Hanafuda-style portraits / encounter | 1024×1024-ish, downscaled to phone | `informant_encounter.png` |
+| Asset | Size | Wired? | Style |
+|---|---|---|---|
+| Hood buildings ×16 (`assets/sprites/`) | 224×208 | **no** | isometric daylight pixel diorama, full colour, **hood name burned into the art** |
+| Small hoods ×4 (`*_sm.png`) | 56×52 | no | same art, pre-shrunk |
+| Map pin icons ×16 (`loc_*.png`) | 48×48 | no | illegible at native size |
+| `map_background_v3.jpg` | 606×1280 | **yes** (Flame + three.js) | pixel highway plate |
+| `travel/frames/drive_0..7.png` | 64×64 ×8 | **yes** (`travel_animation.dart`) | purple car, green headlights, neon-leaning |
+| `informant_encounter.png` | 128×164 | **yes** | neon-noir pixel illustration |
+| Ad art ×5 (`assets/ads/`) | 1024×576 | **yes** | neon poster: type, glitch, scanlines |
+| Contact sheets (`building_sprites`, `clean_buildings`, `player_sprite`, `ui_icons`) | 1024² / 1024×576 | no | sheets, not sprites |
 
-Two habits worth keeping:
+Three things this audit changes:
 
-- **Buildings are grey and colourless.** Neon is UI's job (rings, borders, text). A neon
-  building fights the ring around it.
-- **`*_sm.png` are hand-shrunk, not scaled.** `FilterQuality.none` on a 224px sprite at 56px
-  reads as mud; the shipped small files are redrawn/quantised.
+- **The car is done.** `drive_sheet.png` (8 × 64px) already animates on travel. P0 below is
+  no longer "draw a car", it is "decide whether the car belongs to the neon or the pixel
+  family".
+- **`assets/sprites/` is not in `pubspec.yaml`**, so the 16 buildings, the `_sm`s and the
+  `loc_*.png`s are not even inside the app. They are repo art, unused by both builds.
+- **Every building has a hood name burned into its bottom 34px, and the names are wrong.**
+  `buckhead.png` says LITTLE FIVE POINTS, `cobb.png` says BUCKHEAD, `little_five.png` says
+  UNIVERSITY HOUSE, `airport.png` says COLLEGE PARK, and the rest say CARROLL COUNTY, NORTH
+  HILL, STAR COUNTY, Habersham, SuburbanBank — not Atlanta hoods. Crop the bottom 34px and
+  they become usable anonymous buildings; keep it and the map lies.
+
+Two art directions are in the repo and they do not meet in the middle:
+
+- **isometric daylight pixel diorama** — the buildings, the map plate
+- **neon noir** — the ads, the informant portrait, the car
+
+Pick one before new art is drawn; the ads are the loudest thing on screen and the furthest
+from the map.
 
 Palette (`lib/theme/app_theme.dart` — the only source of truth):
 
@@ -52,40 +70,29 @@ Hoods: `#fdd835` Buckhead · `#1e88e5` Midtown · `#ab47bc` Little Five · `#e53
 
 ---
 
-## 3. What needs drawing (ranked, in the order it unblocks work)
+## 3. What is genuinely missing (ranked by how unfinished it looks)
 
-### P0 — the car, because travel is the game
-Currently the three.js build animates `drive_0..7` frames; nothing in the Flutter build
-moves.
+Everything the player taps that has no art is an emoji today — `lib/utils/sprites.dart` is
+emoji-only, and 3 of the 4 weapons share 🔫.
 
-- **`car_rear.png`** — 8 frames, 64×64 each, one PNG per frame: `car_rear_0.png … _7.png`.
-  Rear-3/4 view, wheels rotating, 2-frame suspension bob (frames 2 and 6 sit 1px lower).
-- **`car_side.png`** — 8 frames, 64×64. Side view (fake-perspective is fine sideways), for
-  the travel sheet's horizontal run.
-- **`car.png`** — 32×32 static, top-down-ish for the map dot while parked.
+### P0 — product icons, 5 × 32×32
+`prod_blunts`, `prod_powda`, `prod_acid`, `prod_shrooms`, `prod_oxy`. These are on the shop
+row, the bag and every price line. 4–6 shapes, 2px black outline, legible at 32px on a 390pt
+screen.
 
-Restriction: **transparent background, object fills 85% of the canvas, all frames identical
-in silhouette position** — the car must not drift between frames or it will jitter.
+### P1 — weapons, 4 × 24×24, each visually distinct
+`wpn_fists`, `wpn_blicky`, `wpn_strap`, `wpn_draco`. Fists / pistol / SMG / rifle — the
+silhouettes must differ at 24px or the weapon shop is four identical guns.
 
-### P1 — icons that are currently emoji
-The emoji in `sprites.dart` is the most prototype-looking thing in the shipping app.
+### P2 — the six encounter types, 512² waist-up
+`enc_cop`, `enc_thief`, `enc_dealer`, `enc_hobo`, `enc_femme`, `enc_mission`. Only the
+informant has art. One pose each, hard shadow, no background.
 
-- **Products**, 32×32, one each: `prod_blunts`, `prod_powda`, `prod_acid`, `prod_shrooms`,
-  `prod_oxy`. Object on transparent, 2px black outline, readable at 32px on a 390pt screen —
-  that means 4–6 shapes maximum, no fine detail.
-- **Weapons**, 24×24: `wpn_fists`, `wpn_knife`, `wpn_pistol`, `wpn_uzi`, `wpn_shotgun`.
-- **UI affordances**, 24×24: `ui_cash`, `ui_bag`, `ui_heat`, `ui_bank`. Optional — the HUD
-  reads fine as text; only draw these if you want the HUD to get denser.
+### P3 — transport icons, 3 × 32×32
+MARTA / Ryde / Drive, plus the drive cycle if the car is redrawn to match.
 
-### P2 — sets that make the world feel alive
-- **Hood building variants**, 224×208, grey like the existing six: 2 per hood (a "rich" and
-  a "rough" state). This lets the same hood look different by day 20 without new code.
-- **Encounter portraits**, 512×512: cop, rival dealer, stick-up kid, street preacher. One
-  pose each, waist-up, hard shadow, no background.
-- **Ad art**, 320×180: the four fake brands are the funniest thing in the game and they are
-  currently stretched PNGs.
-
----
+### P4 — hood variants, 2 per hood, 224×208, labels cropped
+Rich and rough state per hood, so day 20 looks different from day 1.
 
 ## 4. Technical spec — hand this part to anyone drawing
 

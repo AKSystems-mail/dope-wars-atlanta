@@ -1,9 +1,12 @@
-// The diorama: the v3 highway map as a glowing tabletop, one isometric sprite per
-// hood standing on it, and the car sliding the roads between them.
+// The 2D map: the v3 highway plate seen straight on, hood rings as HTML, and the
+// car sprite sliding the roads between them. No perspective, no lights, no depth.
 import * as THREE from "three";
 import { type HoodId, type Location } from "./data";
 
 const MAP_W = 62;
+// how much of the map fits vertically: the camera is orthographic and looks
+// straight down, so this is a flat 2D zoom, not a field of view
+const VIEW_H = 74;
 const MAP_AR = 1280 / 606;
 export const MAP_H = MAP_W * MAP_AR;
 
@@ -23,7 +26,7 @@ const world = (at: [number, number]): [number, number] => [
 
 export class Diorama {
   scene = new THREE.Scene();
-  camera: THREE.PerspectiveCamera;
+  camera: THREE.OrthographicCamera;
   renderer: THREE.WebGLRenderer;
   private nodes = new Map<HoodId, { at: [number, number]; el: HTMLDivElement; on: boolean }>();
   private overlay: HTMLDivElement;
@@ -43,9 +46,11 @@ export class Diorama {
   onArrive: () => void = () => {};
 
   constructor(canvas: HTMLCanvasElement, hoods: Location[]) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    // no antialiasing: the map plate and sprites are nearest-neighbour pixel art
+    // and AA only softens the edges it is supposed to keep hard
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    this.camera = new THREE.PerspectiveCamera(42, 1, 0.5, 500);
+    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
     // transparent, so the CSS glow behind the canvas shows past the map edge
     this.scene.background = null;
 
@@ -98,7 +103,11 @@ export class Diorama {
     const w = innerWidth;
     const h = innerHeight;
     this.renderer.setSize(w, h, false);
-    this.camera.aspect = w / h;
+    const half = VIEW_H / 2;
+    this.camera.left = -half * (w / h);
+    this.camera.right = half * (w / h);
+    this.camera.top = half;
+    this.camera.bottom = -half;
     this.camera.updateProjectionMatrix();
   }
 
@@ -138,7 +147,6 @@ export class Diorama {
       const p = Math.min(1, (now - this.t0) / (this.dur * 1000));
       const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
       this.carPos.lerpVectors(this.from, this.to, e);
-      this.carPos.y = 2 + Math.sin(e * Math.PI) * 3.5;
       this.car.position.copy(this.carPos);
       this.frameClock += dt;
       if (this.frameClock > 0.07) {
@@ -156,26 +164,35 @@ export class Diorama {
     // current hood's ring breathes
     // Nodes ride on top of the map: project each hood to the screen and place
     // its ring there. Current hood gets the pulsing ring, the rest stay quiet.
+    const placed: { el: HTMLDivElement; at: [number, number]; x: number; y: number; half: number }[] = [];
     for (const n of this.nodes.values()) {
       this.tmp.set(n.at[0], 0.1, n.at[1]).project(this.camera);
       // keep the name pill on screen: edge hoods used to lose half their label
       const half = (n.el.querySelector("b")!.offsetWidth || 34) / 2 + 2;
-      const x = Math.min(innerWidth - half, Math.max(half, (this.tmp.x * 0.5 + 0.5) * innerWidth));
-      const y = (-this.tmp.y * 0.5 + 0.5) * innerHeight;
-      n.el.style.transform = `translate(-50%, -100%) translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
-      const active = Math.abs(n.at[0] - this.camTarget.x) < 0.5 && Math.abs(n.at[1] - this.camTarget.z) < 0.5;
-      if (active !== n.on) {
-        n.on = active;
-        n.el.classList.toggle("on", active);
-      }
+      placed.push({
+        el: n.el,
+        at: n.at,
+        x: Math.min(innerWidth - half, Math.max(half, (this.tmp.x * 0.5 + 0.5) * innerWidth)),
+        y: (-this.tmp.y * 0.5 + 0.5) * innerHeight,
+        half,
+      });
     }
+    // Midtown / Little Five Points / Decatur sit close together, so any label that
+    // would land on an earlier one drops below its ring instead.
+    placed.forEach((p, i) => {
+      const low = placed.slice(0, i).some((q) => Math.abs(p.x - q.x) < p.half + q.half && Math.abs(p.y - q.y) < 24);
+      p.el.classList.toggle("low", low);
+      p.el.style.transform = `translate(-50%, -50%) translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
+      const active = Math.abs(p.at[0] - this.camTarget.x) < 0.5 && Math.abs(p.at[1] - this.camTarget.z) < 0.5;
+      p.el.classList.toggle("on", active);
+    });
 
     this.camLook.lerp(this.camTarget, this.travelling ? 0.04 : 0.08);
-    // near-top-down, wide enough to read the whole web of roads like the
-    // Flutter map does. The tilt is fake perspective, not a real 3/4 view.
-    const camPos = new THREE.Vector3(this.camLook.x, this.camLook.y + 90, this.camLook.z + 16);
+    // straight down, no tilt and no z offset: the plate stays flat, square-on and
+    // pixel-identical to the artwork. Anything else is perspective by another name.
+    const camPos = new THREE.Vector3(this.camLook.x, 200, this.camLook.z);
     this.camera.position.lerp(camPos, 0.08);
-    this.camera.lookAt(this.camLook.x, this.camLook.y + 0.6, this.camLook.z);
+    this.camera.lookAt(this.camLook.x, 0, this.camLook.z);
     this.renderer.render(this.scene, this.camera);
   }
 }

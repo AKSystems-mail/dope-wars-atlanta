@@ -64,13 +64,20 @@ export class UI {
     const g = this.game;
     const s = g.s;
     if (!s) return;
-    const heat = g.progressive ? ` · ${g.heatLabel.toUpperCase()}` : "";
+    // Same strip the Flutter PixelHud draws: coloured facts in a wrap row,
+    // no key/value grid, heat only in Progressive.
+    const lateDay = s.day / s.maxDays > 0.75;
+    const heatColor =
+      g.heatLabel === "Hot" ? "red" : g.heatLabel === "Warm" ? "gold" : "dim";
+    const bagPct = g.invCount / s.bag;
     this.hud.innerHTML = `
-      <div class="cell"><span class="k">Hood</span><span class="v">${g.hood.name.replace(" Points", " Pt")}</span></div>
-      <div class="cell"><span class="k">Cash</span><span class="v green">${money(s.cash)}</span></div>
-      <div class="cell"><span class="k">Debt</span><span class="v ${s.debt > 0 ? "red" : "green"}">${money(s.debt)}</span></div>
-      <div class="cell"><span class="k">Day ${s.day}/${s.maxDays}${heat}</span><span class="v pink">${TIME_SHORT[g.timeLabel] ?? g.timeLabel}</span></div>
-      <div class="cell"><span class="k">Bag</span><span class="v">${g.invCount}/${s.bag}</span></div>`;
+      <span class="${lateDay ? "red" : "green"}">DAY ${s.day}/${s.maxDays}</span>
+      ${g.progressive ? `<span class="${heatColor}">HEAT ${g.heatLabel.toUpperCase()}</span>` : ""}
+      <span class="gold">${TIME_SHORT[g.timeLabel] ?? g.timeLabel}</span>
+      ${s.bank > 0 ? `<span class="blue">B${money(s.bank)}</span>` : ""}
+      <span class="gold">${money(s.cash)}</span>
+      ${s.debt > 0 ? `<span class="red">${money(s.debt)}</span>` : ""}
+      <span class="${bagPct >= 0.8 ? "gold" : "dim"}">${g.invCount}/${s.bag}</span>`;
 
     const b: string[] = [];
     const btn = (a: string, label: string, hot = false, v = "") =>
@@ -160,35 +167,41 @@ export class UI {
 
   // ---------- screens ----------
   private titleScreen() {
-    const g = this.game;
-    const hasSave = !!localStorage.getItem("dw3d_save");
     const d = this.sel;
-    const pick = (a: string, v: string, label: string, on: boolean) =>
-      `<button class="btn ${on ? "on" : ""}" data-a="${a}" data-v="${v}">${label}</button>`;
-    return `<div class="modal title">
-      <h1>DOPE WARS<span>ATLANTA</span></h1>
-      <p>3D · buy low · drive fast · stay free</p>
-      <div class="pick">
-        ${pick("setdiff", "easy", "MOUNT PARAN", d.difficulty === "easy")}
-        ${pick("setdiff", "normal", "E ATLANTA", d.difficulty === "normal")}
-        ${pick("setdiff", "hard", "HAPEVILLE", d.difficulty === "hard")}
+    const hasSave = !!localStorage.getItem("dw3d_save");
+    // Boot screen copied from the Flutter build: typed terminal block, then the
+    // "choose your run" cards, then PRESS START with CONTINUE underneath it.
+    const card = (a: string, v: string, emoji: string, title: string, sub: string, on = false) =>
+      `<button class="card ${on ? "on" : ""}" data-a="${a}"${v ? ` data-v="${v}"` : ""}>
+        <span class="ico">${emoji}</span>
+        <span class="txt"><b>${title}</b><i>${sub}</i></span>
+      </button>`;
+    return `<div class="modal title boot">
+      <pre class="term">DOPE WARS ATL
+LOADING...
+v1.0.0
+
+ATLANTA, GA
+EST. 2026
+
+INSERT COIN</pre>
+      <p>CHOOSE YOUR RUN</p>
+      ${hasSave ? card("wipe", "", "🗑️", "START OVER", "Discard the saved run and choose a fresh mode") : ""}
+      ${card("setmode", "classic", "🎯", "CLASSIC", "The whole city is open. Beat the calendar and bank the most.", d.mode === "classic")}
+      ${card("setmode", "progressive", "🗺️", "PROGRESSIVE", "Start with two hoods. Earn the rest, then own the city.", d.mode === "progressive")}
+      <div class="opts"><span class="cap">START</span><div class="grp">
+        ${["easy", "normal", "hard"]
+          .map((x) => `<button class="btn ${d.difficulty === x ? "green" : ""}" data-a="setdiff" data-v="${x}">${DIFFICULTY[x as Difficulty].label.toUpperCase()}</button>`)
+          .join("")}
+      </div></div>
+      <div class="opts"><span class="cap">DAYS</span><div class="grp">
+        ${[30, 60, 90].map((n) => `<button class="btn ${d.days === n ? "green" : ""}" data-a="setdays" data-v="${n}">${n}</button>`).join("")}
+      </div></div>
+      <div class="choices col">
+        <button class="pstart" data-a="start">PRESS START</button>
+        ${hasSave ? `<button class="btn cont" data-a="resume">CONTINUE</button>` : ""}
       </div>
-      <div class="pick">
-        ${pick("setdays", "30", "30 DAYS", d.days === 30)}
-        ${pick("setdays", "60", "60 DAYS", d.days === 60)}
-        ${pick("setdays", "90", "90 DAYS", d.days === 90)}
-      </div>
-      <div class="pick">
-        ${pick("setmode", "classic", "CLASSIC", d.mode === "classic")}
-        ${pick("setmode", "progressive", "PROGRESSIVE", d.mode === "progressive")}
-      </div>
-      <div class="choices">
-        ${hasSave ? `<button class="btn gold" data-a="resume">CONTINUE SAVE</button>` : ""}
-        <button class="btn green" data-a="start">START — ${DIFFICULTY[d.difficulty].label.toUpperCase()}</button>
-      </div>
-      <div class="made">BUILT FROM THE FLUTTER BUILD · THREE.JS</div>
-      <div class="made" style="opacity:.6">cash ${money(DIFFICULTY[d.difficulty].cash)} · debt ${money(DIFFICULTY[d.difficulty].debt)}</div>
-      ${g.s ? "" : ""}
+      <div class="made">cash ${money(DIFFICULTY[d.difficulty].cash)} · debt ${money(DIFFICULTY[d.difficulty].debt)}</div>
     </div>`;
   }
 
@@ -215,9 +228,11 @@ export class UI {
         </div>`;
       })
       .join("");
+    // Header is the hood itself, like the Flutter market screen: the name is the
+    // title and its reputation line is the subtitle.
     return this.panelShell(
-      "MARKET",
-      `${g.hood.name} · ${reputationLine(g.hood)} · bag ${g.invCount}/${s.bag}`,
+      g.hood.name,
+      `${reputationLine(g.hood)} · bag ${g.invCount}/${s.bag}`,
       rows || `<div class="empty">Nobody's selling here.</div>`,
     );
   }
@@ -410,6 +425,10 @@ export class UI {
         this.onNewGame(this.sel);
         this.panel = null;
         this.render();
+        return;
+      case "wipe":
+        localStorage.removeItem("dw3d_save");
+        location.reload();
         return;
       case "resume":
         this.started = true;

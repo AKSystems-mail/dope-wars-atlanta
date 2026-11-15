@@ -21,37 +21,13 @@ const world = (at: [number, number]): [number, number] => [
   (at[1] / 1280 - 0.5) * MAP_H,
 ];
 
-function label(text: string, color: string) {
-  const c = document.createElement("canvas");
-  c.width = 512;
-  c.height = 96;
-  const g = c.getContext("2d")!;
-  g.fillStyle = "rgba(8,6,14,.82)";
-  g.beginPath();
-  g.roundRect(18, 14, 476, 68, 10);
-  g.fill();
-  g.strokeStyle = color;
-  g.lineWidth = 3;
-  g.stroke();
-  g.font = "bold 40px ui-monospace, monospace";
-  g.textAlign = "center";
-  g.textBaseline = "middle";
-  g.shadowColor = color;
-  g.shadowBlur = 18;
-  g.fillStyle = "#fff";
-  g.fillText(text.toUpperCase(), 256, 48);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false }));
-  s.scale.set(9, 1.7, 1);
-  return s;
-}
-
 export class Diorama {
   scene = new THREE.Scene();
   camera: THREE.PerspectiveCamera;
   renderer: THREE.WebGLRenderer;
-  private nodes = new Map<HoodId, { group: THREE.Group; ring: THREE.Mesh; label: THREE.Sprite }>();
+  private nodes = new Map<HoodId, { at: [number, number]; el: HTMLDivElement; on: boolean }>();
+  private overlay: HTMLDivElement;
+  private tmp = new THREE.Vector3();
   private car!: THREE.Sprite;
   private frames: THREE.Texture[] = [];
   private carPos = new THREE.Vector3();
@@ -73,68 +49,31 @@ export class Diorama {
     // transparent, so the CSS glow behind the canvas shows past the map edge
     this.scene.background = null;
 
-    // The v3 art paints land pure black and roads neon, so it goes on last and
-    // additively: a slate table under it gives the city ground, the roads still
-    // burn through. Same texture, two materials — no new art.
-    const land = new THREE.Mesh(
-      new THREE.PlaneGeometry(MAP_W * 1.4, MAP_H * 1.4),
-      new THREE.MeshBasicMaterial({ color: "#171c2b" }),
-    );
-    land.rotation.x = -Math.PI / 2;
-    land.position.y = -0.05;
-    this.scene.add(land);
-
     const map = new THREE.Mesh(
       new THREE.PlaneGeometry(MAP_W, MAP_H),
-      new THREE.MeshBasicMaterial({
-        map: tex("assets/images/map_background_v3.jpg"),
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
+      // plain, not additive: the plate is the Flutter map as-is — black ground,
+      // neon roads, nothing washing it out
+      new THREE.MeshBasicMaterial({ map: tex("assets/images/map_background_v3.jpg") }),
     );
     map.rotation.x = -Math.PI / 2;
     this.scene.add(map);
 
-    this.scene.add(new THREE.AmbientLight("#8899ff", 1.1));
-    const key = new THREE.DirectionalLight("#ffffff", 1.6);
-    key.position.set(-30, 60, 25);
-    this.scene.add(key);
-    const neon = new THREE.PointLight("#00ff9d", 120, 90, 2);
-    neon.position.set(0, 22, 0);
-    this.scene.add(neon);
-
+    // Map nodes are HTML, not meshes: the Flutter build draws them as a 2px
+    // ring with a label pill under it, and sprites in a tilted camera can't
+    // hold that size or that crispness. Same circle, same pill, project the
+    // coordinate every frame.
+    this.overlay = document.createElement("div");
+    this.overlay.id = "nodes";
+    document.body.appendChild(this.overlay);
     for (const h of hoods) {
       const [x, z] = world(h.at);
-      const group = new THREE.Group();
-      group.position.set(x, 0, z);
-
-      // flat pixel art, not an extruded block: the Flutter build drew these as
-      // 2D images on a map and that's the look we're keeping. Sprite faces the
-      // camera, so it reads as the same art from any angle.
-      const face = new THREE.Sprite(
-        new THREE.SpriteMaterial({ map: tex(`assets/sprites/${h.id}.png`), transparent: true, depthWrite: false }),
-      );
-      const H = (208 / 224) * 8;
-      face.scale.set(8, H, 1);
-      face.center.set(0.5, 0);
-      face.position.y = 0.1;
-      face.userData.hood = h.id;
-      group.add(face);
-
-      const ring = new THREE.Mesh(
-        new THREE.RingGeometry(4.2, 4.9, 48),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color(h.accent), transparent: true, opacity: 0.5, side: THREE.DoubleSide }),
-      );
-      ring.rotation.x = -Math.PI / 2;
-      ring.position.y = 0.1;
-      group.add(ring);
-
-      const lb = label(h.name, h.accent);
-      lb.position.set(0, H + 2.6, 0);
-      group.add(lb);
-
-      this.scene.add(group);
-      this.nodes.set(h.id, { group, ring, label: lb });
+      const el = document.createElement("div");
+      el.className = "node";
+      el.style.setProperty("--c", h.accent);
+      el.innerHTML = `<span class="dot"></span><span class="ring"></span><b>${h.name}</b>`;
+      el.addEventListener("click", () => !this.travelling && this.onPick(h.id));
+      this.overlay.appendChild(el);
+      this.nodes.set(h.id, { at: [x, z], el, on: false });
     }
 
     for (let i = 0; i < 8; i++) this.frames.push(tex(`assets/images/travel/frames/drive_${i}.png`));
@@ -148,7 +87,6 @@ export class Diorama {
 
     this.resize();
     addEventListener("resize", () => this.resize());
-    canvas.addEventListener("pointerdown", (e) => this.pick(e));
 
     // opening shot: high and wide, then settle on the current hood
     this.camTarget.set(0, 3.4, 0);
@@ -164,32 +102,10 @@ export class Diorama {
     this.camera.updateProjectionMatrix();
   }
 
-  private pick(e: PointerEvent) {
-    if (this.travelling) return;
-    const r = this.renderer.domElement.getBoundingClientRect();
-    const p = new THREE.Vector2(
-      ((e.clientX - r.left) / r.width) * 2 - 1,
-      -((e.clientY - r.top) / r.height) * 2 + 1,
-    );
-    const ray = new THREE.Raycaster();
-    ray.setFromCamera(p, this.camera);
-    const hits = ray.intersectObjects(
-      [...this.nodes.values()].flatMap((n) => n.group.children),
-      false,
-    );
-    for (const hit of hits) {
-      const id = hit.object.userData.hood as HoodId | undefined;
-      if (id) {
-        this.onPick(id);
-        return;
-      }
-    }
-  }
-
   focus(id: HoodId, instant = false) {
     const n = this.nodes.get(id);
     if (!n) return;
-    const [x, , z] = n.group.position.toArray();
+    const [x, z] = n.at;
     this.camTarget.set(x, 3.4, z);
     if (instant) this.camLook.copy(this.camTarget);
   }
@@ -197,8 +113,8 @@ export class Diorama {
   travel(fromId: HoodId, toId: HoodId, method: "marta" | "ryde" | "drive"): Promise<void> {
     const a = this.nodes.get(fromId)!;
     const b = this.nodes.get(toId)!;
-    this.from.copy(a.group.position);
-    this.to.copy(b.group.position);
+    this.from.set(a.at[0], 0, a.at[1]);
+    this.to.set(b.at[0], 0, b.at[1]);
     this.carPos.copy(this.from);
     this.travelling = true;
     this.t0 = performance.now();
@@ -238,19 +154,28 @@ export class Diorama {
     }
 
     // current hood's ring breathes
-    const pulse = 0.45 + Math.sin(now / 420) * 0.25;
+    // Nodes ride on top of the map: project each hood to the screen and place
+    // its ring there. Current hood gets the pulsing ring, the rest stay quiet.
     for (const n of this.nodes.values()) {
-      const active = Math.abs(n.group.position.x - this.camTarget.x) < 0.5 && Math.abs(n.group.position.z - this.camTarget.z) < 0.5;
-      (n.ring.material as THREE.MeshBasicMaterial).opacity = active ? pulse + 0.25 : 0.18;
-      n.label.material.opacity = active ? 1 : 0.55;
+      this.tmp.set(n.at[0], 0.1, n.at[1]).project(this.camera);
+      // keep the name pill on screen: edge hoods used to lose half their label
+      const half = (n.el.querySelector("b")!.offsetWidth || 34) / 2 + 2;
+      const x = Math.min(innerWidth - half, Math.max(half, (this.tmp.x * 0.5 + 0.5) * innerWidth));
+      const y = (-this.tmp.y * 0.5 + 0.5) * innerHeight;
+      n.el.style.transform = `translate(-50%, -100%) translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      const active = Math.abs(n.at[0] - this.camTarget.x) < 0.5 && Math.abs(n.at[1] - this.camTarget.z) < 0.5;
+      if (active !== n.on) {
+        n.on = active;
+        n.el.classList.toggle("on", active);
+      }
     }
 
     this.camLook.lerp(this.camTarget, this.travelling ? 0.04 : 0.08);
-    // 3/4 view: low enough to see the sides of the buildings, high enough to read the streets
-    const camPos = new THREE.Vector3(this.camLook.x, this.camLook.y + 40, this.camLook.z + 16);
+    // near-top-down, wide enough to read the whole web of roads like the
+    // Flutter map does. The tilt is fake perspective, not a real 3/4 view.
+    const camPos = new THREE.Vector3(this.camLook.x, this.camLook.y + 90, this.camLook.z + 16);
     this.camera.position.lerp(camPos, 0.08);
-    // aim a little high: the HUD and the action bar eat the top and bottom strips
-    this.camera.lookAt(this.camLook.x, this.camLook.y + 1.9, this.camLook.z);
+    this.camera.lookAt(this.camLook.x, this.camLook.y + 0.6, this.camLook.z);
     this.renderer.render(this.scene, this.camera);
   }
 }

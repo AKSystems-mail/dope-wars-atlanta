@@ -264,7 +264,8 @@ class MapScreen extends StatelessWidget {
           encounter = await game.travelByMarta(dest.id);
           break;
         case 'ryde':
-          encounter = await game.travelByRyde(dest.id);
+          // The quoted fare, not a fresh roll — that is what the sheet showed.
+          encounter = await game.travelByRyde(dest.id, fare: cost);
           break;
         case 'drive':
           encounter = await game.travelByDrive(dest.id);

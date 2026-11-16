@@ -28,6 +28,17 @@ void main() {
     });
   });
 
+  group('ryde surge', () {
+    test('rush hour pays, 3 AM is the cheapest ride in the game', () {
+      double at(int h) => (GameState()..gameHour = h).rydeSurgeMultiplier;
+      expect(at(8), greaterThan(1.4), reason: 'morning commute');
+      expect(at(17), greaterThan(1.4), reason: 'evening commute');
+      expect(at(3), lessThan(1.0), reason: 'nobody is riding at 3 AM');
+      expect(at(3), lessThan(at(12)));
+      expect(at(0), greaterThan(at(3)), reason: 'last call still pays');
+    });
+  });
+
   group('bank', () {
     test('deposit moves cash to bank and rejects when short (state unchanged)', () {
       final s = GameState(cash: 5000);

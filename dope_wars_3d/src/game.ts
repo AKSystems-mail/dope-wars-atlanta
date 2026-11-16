@@ -137,9 +137,12 @@ export class Game {
     return Math.round(DIFFICULTY[this.s.difficulty].cash * 1.5 * (this.s.unlocked.filter((h) => UNLOCK_ORDER.includes(h)).length + 1));
   }
   get rydeSurge() {
+    // Mirrors GameState.rydeSurgeMultiplier: rush pays, last call pays, and
+    // 2-6 AM is the cheapest ride in the game.
     const h = this.s.hour;
     if ((h >= 7 && h <= 9) || (h >= 16 && h <= 19)) return 1.5 + (h % 2 === 0 ? 0.3 : 0);
-    if (h >= 23 || h <= 4) return 1.3;
+    if (h >= 23 || h < 2) return 1.3;
+    if (h < 6) return 0.7;
     return 1;
   }
   canTravel(id: string, method: Method) {
@@ -378,7 +381,7 @@ export class Game {
   private arrested(text: string, consequence?: () => void) {
     consequence?.();
     const fine = Math.min(5000, Math.max(100, Math.round(this.s.cash * 0.5)));
-    this.withChoices(text, [
+    const choices: Choice[] = [
       {
         label: `PAY $${fine}`,
         color: "#fdd835",
@@ -387,15 +390,19 @@ export class Game {
           this.clearEncounter();
         },
       },
-      {
+    ];
+    // D18: after the win the councilman declines, so the choice is absent.
+    if (!(this.progressive && this.s.won)) {
+      choices.push({
         label: "CALL COUNCILMAN",
         color: "#ff00f7",
         run: () => {
           this.s.debt += 500;
           this.clearEncounter();
         },
-      },
-    ]);
+      });
+    }
+    this.withChoices(text, choices);
   }
 
   private maybeInformant() {
@@ -662,6 +669,7 @@ export class Game {
       return this.overMessage;
     }
     if (this.s.day > this.s.maxDays) {
+      if (this.progressive && this.s.won) return null; // D16: only dry runs end it
       this.s.over = true;
       if (this.progressive) {
         this.overMessage = "💀 TIME UP\nThe city is not yours yet.\nBut you are still standing.";
@@ -687,8 +695,9 @@ export class Game {
 
   dismissOver() {
     this.overMessage = null;
-    // Winning ends a Classic run, but Progressive's win puts you back in play.
-    if (this.s.over && !(this.progressive && this.s.won)) this.s.over = true;
+    // Winning ends a Classic run, but Progressive's win puts you back in play,
+    // so the flag has to come off or checkOver() early-returns forever (D16).
+    if (this.progressive && this.s.won) this.s.over = false;
     this.onChange();
   }
 

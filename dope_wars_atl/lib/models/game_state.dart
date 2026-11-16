@@ -446,16 +446,19 @@ class GameState {
     return 'Night';
   }
 
-  /// Ryde surge multiplier based on current game hour
+  /// Ryde surge multiplier based on current game hour.
+  ///
+  /// Demand, not mystery: commuters pay, last call pays, and the dead hours are
+  /// cheap because nobody is riding. 3 AM is the cheapest fare in the game.
   double get rydeSurgeMultiplier {
     // Rush hour: 7-9 AM (morning commute), 4-7 PM (evening commute)
     if ((gameHour >= 7 && gameHour <= 9) || (gameHour >= 16 && gameHour <= 19)) {
       return 1.5 + (gameHour.isEven ? 0.3 : 0.0); // 1.5x-1.8x during rush
     }
-    // Late night: 11 PM - 4 AM
-    if (gameHour >= 23 || gameHour <= 4) {
-      return 1.3;
-    }
+    // Closing time: 11 PM - 2 AM
+    if (gameHour >= 23 || gameHour < 2) return 1.3;
+    // 2 AM - 6 AM, the dead hours. No drivers, no riders, no surge.
+    if (gameHour < 6) return 0.7;
     return 1.0;
   }
 
@@ -499,6 +502,9 @@ class GameState {
     }
 
     if (day > maxDays) {
+      // Post-win the calendar stops mattering: the win already happened inside
+      // the cap, and D16 says the aftermath ends when you run dry, not on a date.
+      if (isProgressive && won) return null;
       if (isProgressive) {
         gameOver = true;
         return 'TIME UP\nThe city is not yours yet.\nBut you are still standing.';

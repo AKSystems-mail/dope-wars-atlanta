@@ -269,5 +269,23 @@ void main() {
       expect(s.heat, 60);
       expect(s.day, greaterThan(day), reason: 'time passes either way');
     });
+
+    test('post-win the run still ends when the bag and wallet are empty', () {
+      // D16: "the run ends when you are forced out: out of product, or out of
+      // money." The win flag fires the overlay once; GameService.dismissGameOver
+      // clears it, which is what lets this second check happen at all.
+      final s = GameState(cash: 0, debt: 0, mode: 'progressive')..won = true;
+      expect(s.checkGameOver(), contains('GAME OVER'));
+      expect(s.gameOver, isTrue);
+    });
+
+    test('post-win the calendar stops mattering', () {
+      final s = GameState(cash: 500, debt: 0, mode: 'progressive')
+        ..won = true
+        ..day = 99
+        ..addToInventory('oxy', 5);
+      expect(s.checkGameOver(), isNull,
+          reason: 'the win already happened inside the cap; only dry runs end it');
+    });
   });
 }

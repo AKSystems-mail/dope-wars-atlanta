@@ -246,9 +246,12 @@ class GameService extends ChangeNotifier {
     return false;
   }
 
-  Future<bool> travelByRyde(String locationId) async {
+  /// [fare] is the number the travel sheet quoted. Pass it in: the surge moves
+  /// with the clock, so re-rolling here showed one price and charged another —
+  /// and a higher second roll silently cancelled the trip after the animation.
+  Future<bool> travelByRyde(String locationId, {int? fare}) async {
     if (!canTravelTo(locationId, isMarta: false)) return false;
-    final cost = getRydeCost();
+    final cost = fare ?? getRydeCost();
     if (_state!.cash < cost) return false;
 
     _state!.cash -= cost;
@@ -679,15 +682,18 @@ class GameService extends ChangeNotifier {
             refresh();
           },
         ),
-        EncounterChoice(
-          label: 'CALL COUNCILMAN',
-          color: AppTheme.accentPink,
-          onTap: () {
-            _state!.bailoutFromArrest(500);
-            _dissolveEncounter();
-            refresh();
-          },
-        ),
+        // D18: after the win the councilman declines, so the choice is gone
+        // rather than present-and-refusing. Only the fine is left.
+        if (_state!.bailoutAvailable)
+          EncounterChoice(
+            label: 'CALL COUNCILMAN',
+            color: AppTheme.accentPink,
+            onTap: () {
+              _state!.bailoutFromArrest(500);
+              _dissolveEncounter();
+              refresh();
+            },
+          ),
       ],
     );
   }
@@ -941,6 +947,10 @@ class GameService extends ChangeNotifier {
   void dismissGameOver() {
     _showGameOver = false;
     _gameOverMessage = '';
+    // `gameOver` exists to fire the message once. After a Progressive win the
+    // run continues (D16), so the flag has to come back off or checkGameOver()
+    // early-returns forever and "out of product or money" can never fire.
+    if (_state?.won ?? false) _state!.gameOver = false;
     notifyListeners();
   }
 
